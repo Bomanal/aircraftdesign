@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eacsize · Electric Aircraft Sizing</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><b>eacsize</b><span>Electric aircraft conceptual sizing</span></div>
+  <div class="actions">
+    <label class="inline">Preset <select id="preset"></select></label>
+    <input id="label" type="text" placeholder="Run label (optional)" aria-label="Run label">
+    <button id="run" class="primary" type="button">Run design</button>
+    <span class="links"><a href="/data/runs.json">runs.json</a> · <a href="/data/runs.csv">runs.csv</a></span>
+  </div>
+</header>
+<main>
+  <aside id="setup">
+    <div class="setup-head">
+      <h2>Inputs and assumptions</h2>
+      <button id="reset" type="button">Reset to defaults</button>
+    </div>
+    <p class="hint">Fields tagged <span class="tag">A</span> are assumptions. Hover a field for its range and source.
+      Values changed from the default are highlighted; dimmed fields are not used by the current mode.</p>
+    <form id="form" autocomplete="off"></form>
+  </aside>
+  <section id="results">
+    <div id="error" class="error" hidden></div>
+    <div id="result"><p class="empty">No runs yet. Choose a preset or set the inputs, then press <b>Run design</b>.</p></div>
+    <div id="compare"></div>
+    <div id="history"></div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
