@@ -1,0 +1,221 @@
+parameter,R0001,R0002,R0003,R0004,R0005,R0006,R0007,R0008,R0009,R0010,R0011
+run.id,R0001,R0002,R0003,R0004,R0005,R0006,R0007,R0008,R0009,R0010,R0011
+run.label,"Risen E600, risen_eas regression (L1 weights, scaled Risen)","Risen E600 airframe, Raymer class II weights","E750 two-seat new design (Raymer class II, constraint-sized)","Four-seat, solve MTOM for 200 km at 216 km/h (end of life, 30 min reserve)","E-Hansa conversion at 950 kg (fixed Hansa-NG wing, 100 kW, 190 Wh/kg)","Velis Electro cross-check (600 kg, 24.8 kWh, 57.6 kW, fixed gear)","Four-seat, solve MTOM for 200 km at 216 km/h (end of life, 30 min reserve)",Run 8,2seater350Km,4seater1400Kg,4seater1400Kg
+run.timestamp,2026-11-02T09:49:49,2026-11-02T09:49:49,2026-11-02T09:49:49,2026-11-02T09:49:50,2026-11-02T09:49:50,2026-11-02T09:49:50,2026-11-02T17:26:39,2026-11-02T17:29:13,2026-11-02T17:29:44,2026-11-02T17:30:29,2026-11-02T17:32:21
+run.status,warning,warning,ok,ok,warning,warning,ok,infeasible,infeasible,infeasible,infeasible
+inputs.mode,fixed_mtom,fixed_mtom,fixed_mtom,solve_mtom,fixed_mtom,fixed_mtom,solve_mtom,solve_mtom,solve_mtom,fixed_mtom,fixed_mtom
+inputs.mtom_kg,600.0,600.0,750.0,750.0,950.0,600.0,750.0,750.0,750.0,1400.0,1400.0
+inputs.target,range,range,range,range,range,range,range,range,range,range,range
+inputs.target_range_km,250.0,250.0,250.0,200.0,250.0,250.0,400.0,350.0,350.0,350.0,350.0
+inputs.target_endurance_h,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5
+inputs.size_at_eol,True,True,True,True,True,True,True,True,True,True,True
+inputs.seats,2,2,2,4,2,2,2,4,2,4,4
+inputs.seat_layout,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side,side_by_side
+inputs.occupant_kg,85.0,85.0,85.0,85.0,85.0,85.0,85.0,85.0,85.0,85.0,85.0
+inputs.baggage_per_seat_kg,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0
+inputs.payload_override_kg,0.0,0.0,0.0,0.0,150.0,172.0,0.0,0.0,0.0,0.0,0.0
+inputs.gear,retractable,retractable,retractable,retractable,fixed,fixed,retractable,retractable,retractable,retractable,retractable
+inputs.geometry_mode,scaled_reference,fixed,constraint,constraint,fixed,fixed,constraint,constraint,constraint,constraint,constraint
+inputs.wing_loading_kgm2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+inputs.installed_power_kw,0.0,75.0,0.0,0.0,100.0,57.6,0.0,0.0,0.0,0.0,0.0
+inputs.wing_area_m2,9.7,9.7,9.7,9.7,13.0,9.51,9.7,9.7,9.7,9.7,9.7
+inputs.span_m,8.99,8.99,8.99,8.99,10.51,10.71,8.99,8.99,8.99,8.99,8.99
+inputs.oew_override_kg,0.0,0.0,0.0,0.0,510.0,288.0,0.0,0.0,0.0,0.0,0.0
+inputs.category,none,EU-UL600,CS-VLA,MOSAIC-LSA,MOSAIC-LSA,EU-UL600,MOSAIC-LSA,CS-VLA,CS-VLA,CS-VLA,CS-VLA
+mission.v_cruise_kmh,216.0,216.0,216.0,216.0,130.0,170.0,216.0,216.0,216.0,216.0,216.0
+mission.h_cruise_m,1500.0,1500.0,1500.0,1500.0,914.0,600.0,1500.0,1500.0,1500.0,1500.0,1500.0
+mission.reserve_min,30.0,30.0,30.0,30.0,30.0,10.0,30.0,30.0,30.0,30.0,30.0
+mission.taxi_min,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0
+mission.taxi_kw_per_t,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0
+mission.takeoff_min,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+mission.climb_power_frac,0.8666666666666667,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867
+mission.v_climb_kmh,144.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+mission.v_descent_kmh,198.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+mission.descent_sys_kw,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0
+requirements.vs0_max_kt,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+requirements.s_to50_max_m,500.0,500.0,500.0,500.0,900.0,500.0,500.0,500.0,500.0,500.0,500.0
+requirements.s_ld50_max_m,500.0,500.0,500.0,500.0,700.0,500.0,500.0,500.0,500.0,500.0,500.0
+requirements.roc_min_ms,3.0,3.0,3.0,3.0,1.0,3.0,3.0,3.0,3.0,3.0,3.0
+requirements.ceiling_min_m,3000.0,3000.0,3000.0,3000.0,3000.0,3000.0,3000.0,3000.0,3000.0,3000.0,3000.0
+requirements.v_max_min_kmh,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+requirements.field_elevation_m,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+assumptions.pack_wh_kg,300.0,300.0,300.0,300.0,190.0,177.0,300.0,300.0,300.0,300.0,300.0
+assumptions.pack_w_kg_max,600.0,600.0,600.0,600.0,600.0,600.0,600.0,600.0,600.0,600.0,600.0
+assumptions.c_rate_max,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0
+assumptions.pack_wh_l,450.0,450.0,450.0,450.0,450.0,450.0,450.0,450.0,450.0,450.0,450.0
+assumptions.battery_bay_l,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+assumptions.battery_install_frac,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+assumptions.dod,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9
+assumptions.soh_eol,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8
+assumptions.eta_prop_cruise,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8
+assumptions.eta_prop_climb,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75
+assumptions.eta_motor,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95
+assumptions.eta_inverter,0.98,0.98,0.98,0.98,0.98,0.98,0.98,0.98,0.98,0.98,0.98
+assumptions.eta_wiring,0.99,0.99,0.99,0.99,0.99,0.99,0.99,0.99,0.99,0.99,0.99
+assumptions.eta_battery,0.96,0.96,0.96,0.96,0.96,0.96,0.96,0.96,0.96,0.96,0.96
+assumptions.pt_kw_per_kg,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5
+assumptions.prop_mass_coeff,0.7304,0.7304,0.7304,0.7304,0.7304,0.7304,0.7304,0.7304,0.7304,0.7304,0.7304
+assumptions.cont_power_frac,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867,0.867
+assumptions.prop_diameter_m,1.75,1.75,1.75,1.75,1.75,1.75,1.75,1.75,1.75,1.75,1.75
+assumptions.prop_static_fm,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7
+assumptions.power_margin,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
+assumptions.aspect_ratio,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33
+assumptions.taper,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5
+assumptions.t_c,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15
+assumptions.cl_max_clean,1.6,1.6,1.6,1.6,1.51,1.6,1.6,1.6,1.6,1.6,1.6
+assumptions.cl_max_to,1.8,1.8,1.8,1.8,1.7,1.8,1.8,1.8,1.8,1.8,1.8
+assumptions.cl_max_land,2.0,2.0,2.0,2.0,1.89,2.0,2.0,2.0,2.0,2.0,2.0
+assumptions.e_method,fixed,raymer,raymer,raymer,fixed,raymer,raymer,raymer,raymer,raymer,raymer
+assumptions.oswald_e,0.8,0.8,0.8,0.8,0.75,0.8,0.8,0.8,0.8,0.8,0.8
+assumptions.cd0_override,0.012,0.0,0.0,0.0,0.042,0.0,0.0,0.0,0.0,0.0,0.0
+assumptions.ld_override,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+assumptions.calibrate_cd0,True,True,True,True,True,True,True,True,True,True,True
+assumptions.lam_frac_wing,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35
+assumptions.lam_frac_tail,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35
+assumptions.lam_frac_fus,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15
+assumptions.misc_drag_frac,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
+assumptions.gear_dq_m2,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12
+assumptions.cd0_flap_to,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01
+assumptions.c_ht,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7
+assumptions.c_vt,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04
+assumptions.tail_arm_frac,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55
+assumptions.fus_len_coeff,1.516,1.516,1.516,1.516,1.516,1.516,1.516,1.516,1.516,1.516,1.516
+assumptions.fus_height_m,1.15,1.15,1.15,1.15,1.15,1.15,1.15,1.15,1.15,1.15,1.15
+assumptions.seat_width_m,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58
+assumptions.seat_pitch_m,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+assumptions.nose_len_m,1.3,1.3,1.3,1.3,1.3,1.3,1.3,1.3,1.3,1.3,1.3
+assumptions.min_tailcone_m,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0
+assumptions.main_gear_len_m,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
+assumptions.nose_gear_len_m,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5
+assumptions.weight_method,risen_L1,raymer_calibrated,raymer_calibrated,raymer_calibrated,raymer_calibrated,raymer_calibrated,raymer_calibrated,raymer_calibrated,raymer_calibrated,raymer_calibrated,risen_L1
+assumptions.n_ult,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7
+assumptions.n_land_ult,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5
+assumptions.kc_wing,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85
+assumptions.kc_tail,0.83,0.83,0.83,0.83,0.83,0.83,0.83,0.83,0.83,0.83,0.83
+assumptions.kc_fus,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9
+assumptions.kc_gear,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95
+assumptions.retract_gear_factor,1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.2
+assumptions.avionics_uninst_kg,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0
+assumptions.seat_kg,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0
+assumptions.brs_kg,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0
+assumptions.ref_struct_kg,190.0,190.0,190.0,190.0,190.0,190.0,190.0,190.0,190.0,190.0,180.0
+assumptions.ref_systems_kg,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0
+assumptions.mu_roll,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04,0.04
+assumptions.mu_brake,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35
+assumptions.cl_ground,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3
+assumptions.takeoff_factor,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5
+result.summary.mtom_kg,600.0,600.0,750.0,1067.529519,950.0,600.0,1034.589669,1435.567778,869.257101,1400.0,1400.0
+result.summary.oew_excl_battery_kg,280.000428,280.000428,312.157948,420.174691,510.0,288.0,403.483002,558.972058,353.329421,546.105777,568.520844
+result.summary.payload_kg,180.0,180.0,180.0,360.0,150.0,172.0,180.0,360.0,180.0,360.0,360.0
+result.summary.battery_kg,139.999572,139.999572,257.842052,287.345303,290.0,140.0,451.105085,516.58684,335.914546,493.894223,471.479156
+result.summary.battery_kwh,41.999872,41.999872,77.352616,86.203591,55.1,24.78,135.331525,154.976052,100.774364,148.168267,141.443747
+result.summary.battery_mass_frac,0.233333,0.233333,0.343789,0.269168,0.305263,0.233333,0.436023,0.359848,0.386439,0.352782,0.336771
+result.summary.empty_frac_incl_battery,0.7,0.7,0.76,0.662764,0.842105,0.713333,0.826016,0.749222,0.792912,0.742857,0.742857
+result.summary.wing_area_m2,9.7,9.7,11.20327,11.946445,13.0,9.51,11.577824,21.444071,12.984696,20.912771,20.912771
+result.summary.span_m,8.99,8.99,9.660395,9.975665,10.51,10.71,9.820554,13.36522,10.400121,13.198613,13.198613
+result.summary.aspect_ratio,8.331969,8.331969,8.33,8.33,8.496931,12.06142,8.33,8.33,8.33,8.33,8.33
+result.summary.wing_loading_kgm2,61.85567,61.85567,66.944741,89.359594,73.076923,63.091483,89.359594,66.944741,66.944741,66.944741,66.944741
+result.summary.installed_power_kw,75.0,75.0,60.309613,129.070364,100.0,57.6,124.221973,128.640126,71.028117,124.63662,124.63662
+result.summary.power_loading_wkg,125.0,125.0,80.412817,120.905663,105.263158,96.0,120.068832,89.609232,81.711288,89.026157,89.026157
+result.summary.cd0,0.012,0.012,0.011392,0.011183,0.042,0.025088,0.011304,0.009479,0.010846,0.009533,0.009533
+result.summary.oswald_e,0.8,0.801358,0.801412,0.801412,0.75,0.704505,0.801412,0.801412,0.801412,0.801412,0.801412
+result.summary.ld_max,20.886859,20.904578,21.453765,21.65252,10.916464,16.309946,21.536519,23.519263,21.986928,23.452633,23.452633
+result.summary.range_cruise_km,214.731183,215.256175,387.055534,281.674283,71.563615,109.882217,531.556458,464.932967,463.20552,451.957753,426.479887
+result.summary.range_cruise_eol_km,152.821909,153.316716,289.566347,200.0,42.014875,82.381902,400.0,350.0,350.0,339.681748,319.299456
+result.summary.endurance_vmp_h,1.500022,1.511694,2.532479,1.497265,0.594263,1.068543,2.860443,2.83908,2.980353,2.76452,2.606197
+result.summary.vs0_kcas,43.255769,43.255769,45.0,51.990606,48.364701,43.685735,51.990606,45.0,45.0,45.0,45.0
+result.summary.takeoff_15m_m,330.73291,330.729968,478.175147,486.605473,478.516128,387.216379,486.383392,482.560533,478.93501,482.329442,482.329442
+result.summary.roc_sl_cont_ms,6.421245,6.423611,3.416804,5.814449,4.040539,4.472005,5.752973,4.112553,3.526286,4.07128,4.07128
+result.performance.vs0_kcas,43.255769,43.255769,45.0,51.990606,48.364701,43.685735,51.990606,45.0,45.0,45.0,45.0
+result.performance.vs1_kcas,48.36142,48.36142,50.311529,58.127264,54.109178,48.842137,58.127264,50.311529,50.311529,50.311529,50.311529
+result.performance.vs0_kmh,80.109616,80.109616,83.339928,96.286518,89.571348,80.905912,96.286518,83.339928,83.339928,83.339928,83.339928
+result.performance.vs1_kmh,89.565273,89.565273,93.176872,107.6516,100.21011,90.455559,107.6516,93.176872,93.176872,93.176872,93.176872
+result.performance.v_md_kmh,172.174515,172.10153,181.393129,210.540506,134.42266,130.200866,209.975774,189.924473,183.633264,189.655255,189.655255
+result.performance.v_mp_kmh,130.824341,130.768884,137.828972,159.97619,102.139134,98.931264,159.547086,144.311392,139.531107,144.106831,144.106831
+result.performance.ld_max,20.886859,20.904578,21.453765,21.65252,10.916464,16.309946,21.536519,23.519263,21.986928,23.452633,23.452633
+result.performance.v_max_sl_full_kmh,334.127522,334.137626,296.527992,380.335287,214.627638,238.935027,377.982386,329.0172,303.438069,327.582506,327.582506
+result.performance.vh_kcas,171.384381,171.390771,151.5008,194.832309,109.445003,122.319739,193.612533,168.380868,155.084433,167.634056,167.634056
+result.performance.v_max_cruise_alt_cont_kmh,332.531927,332.545756,293.234367,377.725525,208.040771,230.652287,375.343394,326.247734,300.235559,324.785558,324.785558
+result.performance.roc_sl_full_ms,7.692704,7.69507,4.234737,7.044261,5.111241,5.448485,6.974273,5.024029,4.357427,4.976824,4.976824
+result.performance.roc_sl_cont_ms,6.421245,6.423611,3.416804,5.814449,4.040539,4.472005,5.752973,4.112553,3.526286,4.07128,4.07128
+result.performance.roc_sl_cont_fpm,1264.022098,1264.487912,672.597864,1144.574281,795.380157,880.31422,1132.472715,809.55612,694.149488,801.431429,801.431429
+result.performance.service_ceiling_m,12000.0,12000.0,12000.0,12000.0,12000.0,12000.0,12000.0,12000.0,12000.0,12000.0,12000.0
+result.performance.takeoff_ground_roll_m,174.018832,174.017905,275.406754,295.858049,284.792469,217.447533,295.349418,298.036956,279.498445,296.928379,296.928379
+result.performance.takeoff_15m_m,330.73291,330.729968,478.175147,486.605473,478.516128,387.216379,486.383392,482.560533,478.93501,482.329442,482.329442
+result.performance.landing_ground_roll_m,146.57958,146.57958,156.492136,199.333431,176.490363,148.994287,199.333431,156.492136,156.492136,156.492136,156.492136
+result.performance.landing_15m_m,442.798742,442.798742,453.534205,500.0,475.21175,445.413281,500.0,453.534205,453.534205,453.534205,453.534205
+result.performance.p_batt_cruise_kw,26.376582,26.363727,30.849264,41.036119,43.634347,27.573066,39.995678,52.425941,34.610567,51.309113,51.309113
+result.performance.energy_per_km_wh,122.113804,122.054292,142.820669,189.982033,335.64882,162.194505,185.165175,242.712688,160.234108,237.54219,237.54219
+result.performance.c_rate_takeoff,2.018167,2.018167,0.881161,1.692174,2.051126,2.62703,1.037393,0.938114,0.79657,0.95068,0.995877
+result.performance.c_rate_climb,1.749078,1.749751,0.763967,1.467115,1.778326,2.277635,0.89942,0.813345,0.690626,0.82424,0.863426
+result.performance.pack_w_per_kg_takeoff,605.450227,605.450227,264.348397,507.652261,389.713898,464.984353,311.217916,281.43429,238.9711,285.203997,298.763168
+result.performance.battery_volume_l,93.333048,93.333048,171.894702,191.563535,122.444444,55.066667,300.736723,344.391226,223.943031,329.262815,314.319437
+result.mission.e_nom_kwh,41.999872,41.999872,77.352616,86.203591,55.1,24.78,135.331525,154.976052,100.774364,148.168267,141.443747
+result.mission.e_usable_bol_kwh,37.799884,37.799884,69.617354,77.583232,49.59,22.302,121.798373,139.478447,90.696927,133.35144,127.299372
+result.mission.e_usable_eol_kwh,30.239908,30.239908,55.693883,62.066585,39.672,17.8416,97.438698,111.582757,72.557542,106.681152,101.839498
+result.mission.e_overhead_kwh,6.824623,6.819098,9.179569,12.389164,8.622744,3.59074,12.033512,16.417062,10.471941,16.051379,16.051379
+result.mission.e_reserve_kwh,9.516759,9.504661,12.201709,19.973271,22.509,3.072087,19.409033,22.306067,13.96938,21.784289,21.784289
+result.mission.climb_roc_ms,6.292632,6.326518,3.317087,5.699757,4.001984,4.420067,5.638037,4.017381,3.427764,3.975987,3.975987
+result.mission.climb_time_min,3.972901,3.95162,7.536733,4.386152,3.806445,2.262409,4.434168,6.22296,7.293384,6.287747,6.287747
+result.mission.climb_dist_km,9.534962,9.130162,18.353652,12.397608,6.970701,4.044156,12.499707,15.867061,17.980385,16.009526,16.009526
+result.mission.descent_dist_km,29.470775,30.170508,30.96312,31.249974,9.600152,9.415724,31.082555,33.944148,31.732608,33.847985,33.847985
+result.mission.range_cruise_km,214.731183,215.256175,387.055534,281.674283,71.563615,109.882217,531.556458,464.932967,463.20552,451.957753,426.479887
+result.mission.range_cruise_eol_km,152.821909,153.316716,289.566347,200.0,42.014875,82.381902,400.0,350.0,350.0,339.681748,319.299456
+result.mission.range_cruise_no_reserve_km,292.664706,293.128582,472.489311,386.806703,138.624779,128.822973,636.376565,556.836145,550.386583,543.664785,518.186919
+result.mission.time_cruise_h,1.028601,1.038646,1.843235,1.309002,0.549964,0.668703,2.466607,2.186837,2.191793,2.127403,2.00945
+result.mission.range_vmd_km,233.116322,233.735469,407.860506,281.986346,71.686758,123.929528,532.337534,478.750573,485.191636,465.640374,439.29555
+result.mission.endurance_vmp_h,1.500022,1.511694,2.532479,1.497265,0.594263,1.068543,2.860443,2.83908,2.980353,2.76452,2.606197
+result.mission.endurance_vmp_eol_h,1.04732,1.058416,1.882188,1.054545,0.343162,0.792739,2.145208,2.126399,2.240363,2.066825,1.940167
+result.mission.endurance_vmp_no_reserve_h,2.069899,2.081571,3.102356,2.067142,1.16414,1.258502,3.43032,3.408957,3.55023,3.334396,3.176074
+result.mission.range_ideal_km,341.932419,342.222495,517.472984,408.906808,148.07454,157.533526,658.835169,593.792939,596.12427,580.482598,554.137775
+result.mission.endurance_ideal_h,2.26351,2.266391,3.251455,2.213602,1.255506,1.379018,3.576173,3.563404,3.699955,3.488472,3.33015
+result.mass_kg.structure,190.0,,,,,,,,,,436.261319
+result.mass_kg.fixed_equipment,45.0,,,,,,,,,,61.0
+result.mass_kg.e_powertrain,30.0,30.0,24.123845,51.628146,,,49.688789,51.456051,28.411247,49.854648,49.854648
+result.mass_kg.propeller,15.000428,15.000428,12.877494,21.935086,,,21.355004,21.883878,14.439826,21.404877,21.404877
+result.mass_kg.battery_pack,139.999572,139.999572,257.842052,287.345303,290.0,140.0,451.105085,516.58684,335.914546,493.894223,471.479156
+result.mass_kg.battery_installation,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+result.mass_kg.payload,180.0,180.0,180.0,360.0,150.0,172.0,180.0,360.0,180.0,360.0,360.0
+result.closure.converged,True,True,True,True,True,True,True,True,True,True,True
+result.closure.evaluations,1,1,1,28,1,1,36,33,32,1,1
+result.closure.battery_driver,remaining mass,remaining mass,remaining mass,energy,remaining mass,remaining mass,energy,energy,energy,remaining mass,remaining mass
+result.calibration.raymer_struct_ref_kg,196.869154,196.869154,196.869154,196.869154,196.869154,196.869154,196.869154,196.869154,196.869154,196.869154,196.869154
+result.calibration.raymer_systems_ref_kg,98.333546,98.333546,98.333546,98.333546,98.333546,98.333546,98.333546,98.333546,98.333546,98.333546,98.333546
+result.calibration.cd0_raw_ref,0.014535,0.014535,0.014535,0.014535,0.014535,0.014535,0.014535,0.014535,0.014535,0.014535,0.014535
+result.calibration.k_struct,0.965108,0.965108,0.965108,0.965108,0.965108,0.965108,0.965108,0.965108,0.965108,0.965108,0.914313
+result.calibration.k_sys,0.457626,0.457626,0.457626,0.457626,0.457626,0.457626,0.457626,0.457626,0.457626,0.457626,0.457626
+result.calibration.k_cd0,0.825569,0.825569,0.825569,0.825569,0.825569,0.825569,0.825569,0.825569,0.825569,0.825569,0.825569
+result.check.Battery mass positive,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Take-off distance over 15 m,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Landing distance over 15 m,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+"result.check.Rate of climb, continuous power",pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Service ceiling,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Cruise speed reachable at continuous power,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Climb to cruise altitude,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Cruise energy left after overhead and reserve,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.Take-off C-rate,warn,warn,pass,pass,warn,warn,pass,pass,pass,pass,pass
+result.check.Pack specific power at take-off,warn,warn,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.design.wing_loading_driver,Risen W/S,fixed geometry,stall,landing,fixed geometry,fixed geometry,landing,stall,stall,stall,stall
+result.design.power_driver,Risen P/W,user,takeoff,takeoff,user,user,takeoff,takeoff,takeoff,takeoff,takeoff
+result.mass_kg.wing,,56.787631,70.649396,88.181637,,,84.798992,158.853788,84.935453,153.957122,
+result.mass_kg.htail,,5.792524,7.36481,8.640303,,,8.23009,20.171802,9.26018,19.401508,
+result.mass_kg.vtail,,3.361844,4.221354,4.884743,,,4.662644,11.068383,5.255358,10.663684,
+result.mass_kg.fuselage,,61.520128,68.413298,80.728748,,,79.560067,92.56628,73.340083,91.505779,
+result.mass_kg.main_gear,,49.560946,58.825616,77.146316,,,75.311511,96.853124,65.884808,95.004847,
+result.mass_kg.nose_gear,,12.976928,14.723903,17.980481,,,17.664325,21.262469,16.006493,20.962677,
+result.mass_kg.flight_controls,,3.468872,4.608302,7.007039,,,6.719105,10.990731,5.614865,10.62771,
+result.mass_kg.avionics,,9.334786,9.334786,9.334786,,,9.334786,9.334786,9.334786,9.334786,
+result.mass_kg.electrical_lv,,18.176281,18.176281,18.176281,,,18.176281,18.176281,18.176281,18.176281,
+result.mass_kg.furnishings_seats,,7.979396,11.974472,25.923016,,,19.554188,35.725289,15.150747,34.777982,
+result.mass_kg.rescue_system,,6.040665,6.864392,8.60811,,,8.42722,10.629197,7.519294,10.433876,
+result.check.MTOM within EU-UL600,,pass,,,,pass,,,,,
+result.check.Seats within EU-UL600,,pass,,,,pass,,,,,
+result.check.Stall speed V_S0,,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass
+result.check.MTOM within CS-VLA,,,pass,,,,,fail,fail,fail,fail
+result.check.Seats within CS-VLA,,,pass,,,,,fail,pass,fail,fail
+result.closure.battery_need_kg.energy,,,,287.345303,,,451.105085,516.58684,335.914546,,
+result.closure.battery_need_kg.specific_power,,,,243.119155,,,233.986641,242.308751,133.789781,,
+result.closure.battery_need_kg.c_rate,,,,243.119155,,,233.986641,242.308751,133.789781,,
+result.check.Seats within MOSAIC-LSA,,,,pass,pass,,pass,,,,
+result.check.V_H within MOSAIC-LSA,,,,pass,pass,,pass,,,,
+result.mass_kg.oew_override,,,,,510.0,288.0,,,,,
