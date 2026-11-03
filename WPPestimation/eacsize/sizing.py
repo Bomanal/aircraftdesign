@@ -8,8 +8,9 @@ import math, time
 from dataclasses import dataclass
 
 from .model import DesignInputs, Mission, Requirements, Assumptions, CATEGORIES, to_dict
-from .physics import (G, KT, rho_at, RHO0, make_geometry, cd0_buildup, oswald, Polar, raymer_ga,
-                      risen_l1, powertrain_mass, STRUCT_GROUPS, SYSTEM_GROUPS)
+from .physics import (G, KT, rho_at, RHO0, make_geometry, cd0_buildup, oswald, Polar, structure,
+                      raymer_systems, risen_l1, powertrain_mass)
+from . import regression
 from .performance import (pw_constraints, ws_limits, constraint_diagram, takeoff, landing, roc_max, v_max,
                           service_ceiling, v_stall)
 from .mission import Flight
@@ -22,15 +23,25 @@ RISEN = dict(mtom_kg=600.0, S_m2=9.70, span_m=8.99, P_kw=75.0, seats=2, layout="
 # ------------------------------------------------------------------------------------------
 # calibration
 # ------------------------------------------------------------------------------------------
+def class2_family(weight_method):
+    """'raymer' / 'roskam' for the class II methods, None otherwise."""
+    for fam in ("raymer", "roskam"):
+        if weight_method.startswith(fam):
+            return fam
+    return None
+
+
 def calibration(A: Assumptions):
+    """Evaluate the selected class II method on the Risen and return the factors that make it
+    match the calibration targets (structure, systems) and C_D0 0.0120."""
     r = RISEN
     g = make_geometry(r["mtom_kg"], r["S_m2"], r["span_m"], r["seats"], r["layout"], A)
     q = 0.5 * rho_at(r["h_cal_m"]) * r["v_cal_ms"] ** 2
-    kg = raymer_ga(g, r["mtom_kg"], r["seats"], r["gear"], q, A)
-    struct = sum(kg[k] for k in STRUCT_GROUPS)
-    systems = sum(kg[k] for k in SYSTEM_GROUPS)
+    fam = class2_family(A.weight_method) or "raymer"
+    struct = sum(structure(fam, g, r["mtom_kg"], r["seats"], r["gear"], q, A).values())
+    systems = sum(raymer_systems(g, r["mtom_kg"], r["seats"], A).values())
     cd0_raw, _ = cd0_buildup(g, r["v_cal_ms"], r["h_cal_m"], A)
-    return dict(raymer_struct_ref_kg=struct, raymer_systems_ref_kg=systems, cd0_raw_ref=cd0_raw,
+    return dict(method=fam, struct_ref_raw_kg=struct, systems_ref_raw_kg=systems, cd0_raw_ref=cd0_raw,
                 k_struct=A.ref_struct_kg / struct, k_sys=A.ref_systems_kg / systems,
                 k_cd0=r["cd0_elec"] / cd0_raw)
 
@@ -112,16 +123,19 @@ def build_airframe(M, inp: DesignInputs, msn: Mission, req: Requirements, A: Ass
         P = (finite[P_driver] if finite else 0.0) * W * (1 + A.power_margin)
     # --- step 6: weights
     q_cr = 0.5 * rho_at(msn.h_cruise_m) * V_cr ** 2
+    fam = class2_family(A.weight_method)
     if A.weight_method == "risen_L1":
         groups = risen_l1(M, S, inp.seats, dict(mtom_kg=RISEN["mtom_kg"], S_m2=RISEN["S_m2"],
                                                   struct_kg=A.ref_struct_kg, systems_kg=A.ref_systems_kg))
+    elif A.weight_method == "electric_regression":
+        groups = dict(airframe_regression=regression.fit(A).predict(M, inp.seats))
     else:
-        groups = raymer_ga(geom, M, inp.seats, inp.gear, q_cr, A)
-        if A.weight_method == "raymer_calibrated":
-            for g_ in STRUCT_GROUPS:
-                groups[g_] *= cal["k_struct"]
-            for g_ in SYSTEM_GROUPS:
-                groups[g_] *= cal["k_sys"]
+        st = structure(fam, geom, M, inp.seats, inp.gear, q_cr, A)
+        sy = raymer_systems(geom, M, inp.seats, A)
+        if A.weight_method.endswith("_calibrated"):
+            st = {k: v * cal["k_struct"] for k, v in st.items()}
+            sy = {k: v * cal["k_sys"] for k, v in sy.items()}
+        groups = {**st, **sy}
     groups.update(powertrain_mass(P / 1e3, A))
     oew = sum(groups.values())
     if inp.oew_override_kg > 0:
@@ -358,6 +372,16 @@ def run_design(inp: DesignInputs, msn: Mission = None, req: Requirements = None,
             messages.append(f"No mass left for a battery: OEW {af.oew:.0f} kg + payload {payload:.0f} kg "
                             f"exceeds MTOM {inp.mtom_kg:.0f} kg.")
     perf, mission, checks, charts = evaluate(af, pack, payload, inp, msn, req, A)
+    if A.weight_method == "electric_regression":
+        fit = regression.fit(A)
+        cal = dict(cal, method="electric_regression", k_struct=None, k_sys=None, regression=fit.as_dict())
+        lo, hi = fit.mtom_range
+        ok = lo * 0.85 <= af.M <= hi * 1.15
+        checks.append(dict(name="MTOM inside regression data range (+/-15 %)", value=af.M, limit=hi, unit="kg",
+                           ok=ok, severity="pass" if ok else "warn",
+                           note=f"data covers {lo:.0f}-{hi:.0f} kg, n = {fit.n}, rms error {fit.rms_pct:.0f} %"))
+    elif not A.weight_method.endswith("_calibrated"):
+        cal = dict(cal, k_struct=None, k_sys=None, method=A.weight_method)   # weight factors not applied
     fails = [c for c in checks if c["severity"] == "fail"]
     warns = [c for c in checks if c["severity"] == "warn"]
     status = "infeasible" if (fails or not closure["converged"]) else "warning" if warns else "ok"

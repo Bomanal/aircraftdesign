@@ -1,0 +1,156 @@
+{
+  "description": "Flown battery-electric light aircraft for the electric_regression weight method. Masses in kg, power in kW (maximum take-off power, matching the sizing's installed power), energy in kWh. Every value comes from the listed sources (fetched 2026-11-03); conflicts are recorded in notes. battery_kg null means not published: the regression then estimates it from battery_kwh and the 'regression_pack_wh_kg' assumption (only if 'regression_estimate_battery' is on). include=false entries are kept for reference and can be added with the 'regression_add' assumption.",
+  "fields": {
+    "empty_includes_battery": "true/false as published; 'inferred' notes mark where the source does not say",
+    "empty_excl_battery_kg": "used directly when a source publishes empty mass without battery",
+    "confidence": "high = type-certificate data; medium = manufacturer data with minor conflicts; low = preliminary, inconsistent or secondary"
+  },
+  "aircraft": [
+    {
+      "name": "Pipistrel Velis Electro",
+      "status": "EASA type certified (TC EASA.A.573, 2020)",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 600, "empty_kg": 428, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": 140, "battery_kwh": 24.8, "power_kw": 57.6,
+      "include": true, "confidence": "high",
+      "sources": [
+        "https://www.easa.europa.eu/en/downloads/20704/en",
+        "https://www.pipistrel.si/products/general-aviation/velis-electro/",
+        "https://www.pipistrel-aircraft.com/products/velis-electro/"
+      ],
+      "notes": "TCDS: MTOM 600 kg, MTOP 57.6 kW (90 s), MCP 49.2 kW, ESS rated 2 x 11.0 kWh. Manufacturer: 428 kg basic empty with batteries, 24.8 kWh nominal, ~70 kg per pack x 2."
+    },
+    {
+      "name": "Pipistrel Alpha Electro",
+      "status": "production (LSA / microlight)",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 550, "empty_kg": 377, "empty_includes_battery": true, "empty_excl_battery_kg": 251,
+      "battery_kg": 126, "battery_kwh": 21, "power_kw": 60,
+      "include": true, "confidence": "medium",
+      "sources": [
+        "https://www.pipistrel.si/products/light-sport-microlight/alpha-electro/",
+        "https://aeropedia.com.au/?p=4196"
+      ],
+      "notes": "Manufacturer: MTOW 472.5-550 kg, 368 kg empty with batteries, 21 kWh, 60 kW for 1 min. Aeropedia: 377 kg with batteries = 251 kg without + 126 kg battery system (consistent pair used here). Gear not stated in sources; fixed tricycle per type."
+    },
+    {
+      "name": "Yuneec E430",
+      "status": "flying prototype",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 470, "empty_kg": 250, "empty_includes_battery": true, "empty_excl_battery_kg": 178,
+      "battery_kg": 72, "battery_kwh": null, "power_kw": 40,
+      "include": true, "confidence": "medium",
+      "sources": [
+        "https://newatlas.com/yuneec-e430-electric-aircraft/12036/",
+        "https://en.wikipedia.org/wiki/Yuneec_International_E430"
+      ],
+      "notes": "MTOM conflict: 430 kg (New Atlas) vs 470 kg (Wikipedia, citing Yuneec 2008 spec). 178 kg without + 72 kg batteries = 250 kg with batteries. Battery pack count conflicts between sources. 13.8 m span motor-glider-like planform."
+    },
+    {
+      "name": "Siemens/Magnus eFusion",
+      "status": "flying prototype (2016-2018)",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 600, "empty_kg": 410, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": 10.1, "power_kw": 60,
+      "include": true, "confidence": "medium",
+      "sources": [
+        "https://publikationen.bibliothek.kit.edu/1000074520/4402921",
+        "https://www.airport-technology.com/projects/magnus-efusion-light-sport-aircraft/"
+      ],
+      "notes": "Siemens: empty weight including batteries and parachute 410 kg; 45 kW MCP, 60 kW MTOP, 85 kW peak; battery 10.1 kWh. Battery mass not published (estimated by the regression). Aerobatic-capable Magnus Fusion airframe."
+    },
+    {
+      "name": "Elektra Solar Elektra Trainer",
+      "status": "German UL type approval (LTF-UL 2020)",
+      "seats": 2, "gear": "retractable",
+      "mtom_kg": 600, "empty_kg": 400, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": 30, "power_kw": 70,
+      "include": true, "confidence": "medium",
+      "sources": [
+        "https://www.elektra-solar.com/products/elektra-trainer/",
+        "https://aviationweek.com/aerospace/advanced-air-mobility/german-ultralight-electric-trainer-flies"
+      ],
+      "notes": "Manufacturer: MTOW 600 kg, empty 400 kg with battery, 30 kWh standard (36 kWh option), HPD-50D 70 kW peak / 40 kW continuous, 14.5 m span. Standard gear is a retractable monowheel. Battery mass not published (estimated)."
+    },
+    {
+      "name": "Diamond eDA40",
+      "status": "flying prototype (2023), figures preliminary",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 1310, "empty_kg": 1130, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": 80, "power_kw": 125,
+      "include": true, "confidence": "low",
+      "sources": [
+        "https://diamondaircraft.com/en/flight-school-solution/aircraft/eda40/tech-specs",
+        "https://www.diamondaircraft.com/fileadmin/diamondaircraft/documents/eDA40/eDA40_2024_SCREEN.pdf"
+      ],
+      "notes": "Diamond: 'calculated, preliminary' MTOM 1,310 kg, empty 1,130 kg, useful load 180 kg, 80 kWh, 125 kW. empty_includes_battery is inferred (no fuel; 1,130 + 180 = 1,310). Gear assumed fixed (DA40 airframe). Battery mass not published (estimated). Heavy four-seat-class airframe flown as a two-seater."
+    },
+    {
+      "name": "Bye Aerospace eFlyer 2",
+      "status": "flying prototype",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 862, "empty_kg": 662, "empty_includes_battery": null, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": 90, "power_kw": 90,
+      "include": false, "confidence": "low",
+      "sources": [
+        "https://aopa.org/news-and-media/all-news/2020/march/31/eflyer-gets-garmin-glass",
+        "https://byeaerospace.com/pages/eflyer"
+      ],
+      "notes": "Excluded by default: 2020 masses (1,900 / 1,460 lb) belong to the 90 kW Siemens configuration, the current 125 kW design has no published masses, and whether empty mass includes the ~90 kWh battery is not stated. Estimating the battery at ~170 Wh/kg leaves an implausibly light airframe."
+    },
+    {
+      "name": "Airbus E-Fan 1.0",
+      "status": "technology demonstrator (2014-2017)",
+      "seats": 2, "gear": "retractable",
+      "mtom_kg": 550, "empty_kg": 500, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": 167, "battery_kwh": 29, "power_kw": 60,
+      "include": false, "confidence": "low",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Airbus_E-Fan",
+        "https://aatlse.org/en/appareils/airbus-e-fan/",
+        "https://www.icas.org/icas_archive/ICAS2016/data/papers/2016_0731_paper.pdf"
+      ],
+      "notes": "Excluded by default: battery mass conflicts (167 kg Wikipedia vs 137 kg aatlse), sources do not say whether the 500 kg empty mass includes the battery (assumed true here), and 500/550 kg leaves only ~50 kg useful load (demonstrator flown effectively single-pilot)."
+    },
+    {
+      "name": "Pipistrel WATTsUP",
+      "status": "flying prototype (2014)",
+      "seats": 2, "gear": "fixed",
+      "mtom_kg": 550, "empty_kg": 314, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": 17, "power_kw": 50,
+      "include": false, "confidence": "low",
+      "sources": [
+        "https://www.airport-technology.com/projects/pipistrel-wattsup-electric-trainer-aircraft/",
+        "https://en.wikipedia.org/wiki/Pipistrel_WATTsUP"
+      ],
+      "notes": "Excluded by default: published 251 kg without + 126 kg battery = 377 kg does not match the stated 314 kg with batteries (figures likely copied from Alpha Electro), so battery mass is left null. Motor power conflicts (50 vs 85 kW)."
+    },
+    {
+      "name": "Pipistrel Taurus Electro",
+      "status": "production self-launching glider",
+      "seats": 2, "gear": "retractable",
+      "mtom_kg": 550, "empty_kg": 306, "empty_includes_battery": true, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": 4.75, "power_kw": 40,
+      "include": false, "confidence": "medium",
+      "sources": ["https://www.pipistrel-aircraft.com/products/taurus-electro/"],
+      "notes": "Excluded by default: self-launching glider with a 4.75 kWh launch-only pack, not a cruise-sized electric aircraft. MTOW listed as 450 / 472.5 / 550 kg."
+    },
+    {
+      "name": "Lange Antares 20E",
+      "status": "EASA type certified self-launching glider (EASA.A.092)",
+      "seats": 1, "gear": "retractable",
+      "mtom_kg": 660, "empty_kg": 460, "empty_includes_battery": null, "empty_excl_battery_kg": null,
+      "battery_kg": null, "battery_kwh": null, "power_kw": 42,
+      "include": false, "confidence": "low",
+      "sources": ["https://www.easa.europa.eu/hr/downloads/7342/en", "https://en.wikipedia.org/wiki/Lange_Antares"],
+      "notes": "Excluded: single-seat sailplane, MTOM includes water ballast, battery energy and mass not published. Kept for reference only; cannot be added (no battery data)."
+    }
+  ],
+  "no_mass_data": [
+    "BRM Aero Bristell B23 Energic: MTOM 850 kg, 48-49 kWh, 100 kW MTOP; empty mass not published (avpay.aero, AIN 2026-04-27)",
+    "IFB Stuttgart e-Genius: MTOM 850-950 kg, 300 kg battery, 56 kWh; empty mass not published",
+    "Extra 330LE: MTOM 1,000 kg, 260 kW; empty and battery mass not published",
+    "Aura Aero Integral E: 215 kg battery, 150 kW; MTOM not published",
+    "Bye eFlyer 4 and Sonex ESA: concepts, not flown"
+  ]
+}

@@ -2,9 +2,10 @@
 Verification:
   1. Regression - with the risen_eas settings (L1 weights, scaled Risen, C_D0 0.0120), eacsize must
      reproduce risen_eas E600 / E750 metrics within 0.1 %.
-  2. Calibration - the Raymer class-II path on the Risen airframe must return the calibration
-     targets (OEW excl. battery 280 kg, C_D0 0.0120).
-  3. Cross-checks (reported, not asserted) - Velis Electro published data and the E-Hansa study.
+  2. Calibration - the Raymer and Roskam class-II paths on the Risen airframe must return the
+     calibration targets (OEW excl. battery 280 kg, C_D0 0.0120).
+  3. Reported, not asserted - the electric-aircraft regression fit and its residuals, and
+     cross-checks against Velis Electro published data and the E-Hansa study.
 Exit code 1 on any failure of 1 or 2.
 """
 from __future__ import annotations
@@ -40,9 +41,25 @@ def _regression():
 
 
 def _calibration():
-    res = run_from_dict(preset("risen_e600_class2"))["results"]
-    return [("Risen class II OEW excl. battery kg", res["summary"]["oew_excl_battery_kg"], 280.0, 0.001),
-            ("Risen class II C_D0", res["summary"]["cd0"], 0.0120, 0.005)]
+    rows = []
+    for wm in ("raymer_calibrated", "roskam_calibrated"):
+        b = preset("risen_e600_class2")
+        b["assumptions"] = dict(weight_method=wm)
+        res = run_from_dict(b)["results"]
+        rows += [(f"Risen {wm} OEW excl. battery kg", res["summary"]["oew_excl_battery_kg"], 280.0, 0.001),
+                 (f"Risen {wm} C_D0", res["summary"]["cd0"], 0.0120, 0.005)]
+    return rows
+
+
+def _regression_report():
+    from .model import Assumptions
+    from . import regression
+    f = regression.fit(Assumptions())
+    print(f"\nElectric-aircraft regression ({f.as_dict()['form']}): a = {f.a:.4f}, b = {f.b:.3f}, "
+          f"n = {f.n}, R2 = {f.r2:.3f}, rms error {f.rms_pct:.1f} %")
+    for p in f.points:
+        print(f"  {p['name']:34s} MTOM {p['mtom_kg']:6.0f}  airframe {p['airframe_kg']:6.1f}  fit {p['predicted_kg']:6.1f}  "
+              f"{p['error_pct']:+6.1f} %")
 
 
 def _cross_checks():
@@ -67,6 +84,7 @@ def main():
         ok = abs(err) <= tol
         fails += not ok
         print(f"{name:42s} {a:10.3f} {b:10.3f} {err * 100:7.3f}% {tol * 100:5.2f}% {'OK' if ok else 'FAIL'}")
+    _regression_report()
     print("\nCross-checks (reported only)")
     for name, a, b, src in _cross_checks():
         print(f"{name:42s} {a:10.2f} {b:10.2f} {(a - b) / b * 100:+7.1f}%  {src}")
