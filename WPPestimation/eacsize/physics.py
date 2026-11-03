@@ -5,8 +5,9 @@ Geometry   : Raymer Ch.6-7 (tail volume coefficients, statistical fuselage lengt
              fuselage wetted area, seat-layout cabin model.
 Aerodynamics: Raymer Ch.12 component build-up  C_D0 = sum(Cf * FF * Q * S_wet) / S, mixed
              laminar/turbulent skin friction, fixed-gear drag area; Raymer straight-wing Oswald fit.
-Weights    : Raymer GA component equations (Ch.15, imperial units) x composite factors x k_cal,
-             or the risen_eas scaled-fraction (L1) law. E-powertrain from specific power.
+Weights    : Raymer GA component equations (Ch.15) or Cessna class II structure (Roskam Part V)
+             + USAF gear, x composite factors x k_cal; the risen_eas scaled-fraction (L1) law; or a
+             regression on electric aircraft (regression.py). E-powertrain from specific power.
 """
 from __future__ import annotations
 import math
@@ -170,43 +171,85 @@ class Polar:
 # ------------------------------------------------------------------------------------------
 # Step 6 - weights
 # ------------------------------------------------------------------------------------------
-def raymer_ga(g: Geometry, mtom, seats, gear, q_pa, A):
-    """Raymer GA component weights [kg], before composite factors and calibration."""
+def _gear_factor(gear, A):
+    return A.retract_gear_factor if gear == "retractable" else 1.0
+
+
+def raymer_structure(g: Geometry, mtom, gear, q_pa, A):
+    """Raymer GA structural group weights [kg] (eqs. 15.46-15.50), with composite factors."""
     Wdg = mtom * KG_LB
     NzW = A.n_ult * Wdg
     q = q_pa * PA_PSF
     Sw = g.S * M2_FT2
     lb = {}
     lb["wing"] = (0.036 * Sw ** 0.758 * 1.0 ** 0.0035 * g.AR ** 0.6 * q ** 0.006 * g.taper ** 0.04
-                  * (100 * g.t_c) ** -0.3 * NzW ** 0.49)
+                  * (100 * g.t_c) ** -0.3 * NzW ** 0.49) * A.kc_wing
     lb["htail"] = (0.016 * NzW ** 0.414 * q ** 0.168 * (g.S_ht * M2_FT2) ** 0.896 * (100 * TAIL_TC) ** -0.12
-                   * TAIL_AR_H ** 0.043 * TAIL_TAPER ** -0.02)
+                   * TAIL_AR_H ** 0.043 * TAIL_TAPER ** -0.02) * A.kc_tail
     lb["vtail"] = (0.073 * NzW ** 0.376 * q ** 0.122 * (g.S_vt * M2_FT2) ** 0.873 * (100 * TAIL_TC) ** -0.49
-                   * TAIL_AR_V ** 0.357 * TAIL_TAPER ** 0.039)
+                   * TAIL_AR_V ** 0.357 * TAIL_TAPER ** 0.039) * A.kc_tail
     lb["fuselage"] = (0.052 * (g.S_wet_fus * M2_FT2) ** 1.086 * NzW ** 0.177 * (g.tail_arm * M_FT) ** -0.051
-                      * g.fus_fineness ** -0.072 * q ** 0.241)
+                      * g.fus_fineness ** -0.072 * q ** 0.241) * A.kc_fus
     NlWl = A.n_land_ult * Wdg
-    gf = A.retract_gear_factor if gear == "retractable" else 1.0
+    gf = _gear_factor(gear, A) * A.kc_gear
     lb["main_gear"] = 0.095 * NlWl ** 0.768 * (A.main_gear_len_m * 39.37 / 12) ** 0.409 * gf
     lb["nose_gear"] = 0.125 * NlWl ** 0.566 * (A.nose_gear_len_m * 39.37 / 12) ** 0.845 * gf
-    lb["flight_controls"] = 0.053 * (g.fus_len * M_FT) ** 1.536 * (g.b * M_FT) ** 0.371 * (NzW * 1e-4) ** 0.80
+    return {k: v / KG_LB for k, v in lb.items()}
+
+
+def roskam_structure(g: Geometry, mtom, seats, gear, A):
+    """Cessna class II structure (Roskam, Airplane Design Part V) + USAF landing gear [kg], with
+    composite factors. Imperial units inside: lb, ft, ft2. Cessna method validity: GA aircraft,
+    cantilever wing, unpressurised fuselage, cruise below ~370 km/h. Fitted to metal Cessnas
+    (AR ~7), so it over-predicts light composite high-AR wings; use the calibrated variant."""
+    W = mtom * KG_LB
+    S, AR, n = g.S * M2_FT2, g.AR, A.n_ult
+    lb = {}
+    lb["wing"] = 0.04674 * W ** 0.397 * S ** 0.360 * n ** 0.397 * AR ** 1.712 * A.kc_wing
+    # tails: t_r = maximum root thickness [ft]; quarter-chord sweep of the fin taken as 0
+    S_h, S_v = g.S_ht * M2_FT2, g.S_vt * M2_FT2
+    c_rh = 2 * S_h / (math.sqrt(TAIL_AR_H * S_h) * (1 + TAIL_TAPER))
+    c_rv = 2 * S_v / (math.sqrt(TAIL_AR_V * S_v) * (1 + TAIL_TAPER))
+    lb["htail"] = 3.184 * W ** 0.887 * S_h ** 0.101 * TAIL_AR_H ** 0.138 / (174.04 * (TAIL_TC * c_rh) ** 0.223) * A.kc_tail
+    lb["vtail"] = 1.68 * W ** 0.567 * S_v ** 1.249 * TAIL_AR_V ** 0.482 / (639.95 * (TAIL_TC * c_rv) ** 0.747) * A.kc_tail
+    # fuselage, low-wing form; P_max = perimeter of the elliptical max section (Ramanujan)
+    a, b = g.fus_width / 2, g.fus_height / 2
+    P_max = math.pi * (3 * (a + b) - math.sqrt((3 * a + b) * (a + 3 * b))) * M_FT
+    l_f = g.fus_len * M_FT
+    lb["fuselage"] = 14.86 * W ** 0.144 * (l_f / P_max) ** 0.778 * l_f ** 0.383 * seats ** 0.455 * A.kc_fus
+    # USAF landing gear (main + nose), strut length in ft
+    lb["landing_gear"] = (0.054 * (A.main_gear_len_m * M_FT) ** 0.501 * (W * A.n_land_ult) ** 0.684
+                          * _gear_factor(gear, A) * A.kc_gear)
+    return {k: v / KG_LB for k, v in lb.items()}
+
+
+def raymer_systems(g: Geometry, mtom, seats, A):
+    """Raymer GA systems and equipment [kg] (eqs. 15.54-15.58) + seats and rescue system."""
+    Wdg = mtom * KG_LB
+    NzW = A.n_ult * Wdg
+    kg = {}
+    kg["flight_controls"] = 0.053 * (g.fus_len * M_FT) ** 1.536 * (g.b * M_FT) ** 0.371 * (NzW * 1e-4) ** 0.80 / KG_LB
     av = 2.117 * (A.avionics_uninst_kg * KG_LB) ** 0.933
-    lb["avionics"] = av
-    lb["electrical_lv"] = 12.57 * av ** 0.51
-    kg = {k: v / KG_LB for k, v in lb.items()}
+    kg["avionics"] = av / KG_LB
+    kg["electrical_lv"] = 12.57 * av ** 0.51 / KG_LB
     kg["furnishings_seats"] = max(0.0, 0.0582 * Wdg - 65) / KG_LB + A.seat_kg * seats
     kg["rescue_system"] = (A.brs_kg + 0.012 * mtom) if A.brs_kg > 0 else 0.0
-    # composite factors on the structural groups
-    kg["wing"] *= A.kc_wing
-    kg["htail"] *= A.kc_tail
-    kg["vtail"] *= A.kc_tail
-    kg["fuselage"] *= A.kc_fus
-    kg["main_gear"] *= A.kc_gear
-    kg["nose_gear"] *= A.kc_gear
     return kg
 
 
-STRUCT_GROUPS = ("wing", "htail", "vtail", "fuselage", "main_gear", "nose_gear")
+def structure(method, g: Geometry, mtom, seats, gear, q_pa, A):
+    """Structural groups for a class II method ('raymer' or 'roskam')."""
+    if method == "roskam":
+        return roskam_structure(g, mtom, seats, gear, A)
+    return raymer_structure(g, mtom, gear, q_pa, A)
+
+
+def raymer_ga(g: Geometry, mtom, seats, gear, q_pa, A):
+    """Raymer GA component weights [kg]: structure (with composite factors) + systems."""
+    return {**raymer_structure(g, mtom, gear, q_pa, A), **raymer_systems(g, mtom, seats, A)}
+
+
+STRUCT_GROUPS = ("wing", "htail", "vtail", "fuselage", "main_gear", "nose_gear", "landing_gear")
 SYSTEM_GROUPS = ("flight_controls", "avionics", "electrical_lv", "furnishings_seats", "rescue_system")
 
 
