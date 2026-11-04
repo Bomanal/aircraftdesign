@@ -1,0 +1,7 @@
+{
+  "_comment": "Textbook worked example for method 'torenbeek'. Fill context_si (ModelContext fields, SI) and expected_kg (component -> kg) from the project's copy of the source text, cite edition/page in 'reference', then set verified_from_text=true. Tolerance 1% (R4).",
+  "reference": "",
+  "verified_from_text": false,
+  "context_si": {},
+  "expected_kg": {}
+}

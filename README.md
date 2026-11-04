@@ -13,6 +13,7 @@ This repository holds conceptual and preliminary design tools for battery-electr
 | [`WPPestimation/risen_eas.py`](WPPestimation/risen_eas.py) | Earlier weight, performance and operating-cost estimator scaled from the Risen 912iS. It is the regression reference for `eacsize`. |
 | `WPPestimation/*.pdf` | The method document and the Risen electric configurations study that `risen_eas.py` implements |
 | [`WPPestimation/runs/`](WPPestimation/runs/) | Example runs: Risen E600, E750 new design, four-seat solved MTOM, E-Hansa 950 kg, Velis Electro check |
+| [`WeightEstimation/`](WeightEstimation/) | HS1 weight-prediction module (`hs1_weights`), built from `references/hs1_weights_handover/`. It combines component models (Raymer GA, plus Torenbeek and Roskam for benchmarking, and bottom-up electric/DEP/quick-swap models) under the dual-basis ASTM F2245 / FAR 23 load envelope, with hierarchical Bayesian technology factors calibrated on a provenance-tracked fleet database. It reports P10/P50/P90 masses, CG, analogs, rule checks and Sobol indices, and provides an MTOW closure hook. It needs Python ≥ 3.10 with numpy, scipy, pandas and pydantic. The fleet data is still to be collected; see its [README](WeightEstimation/README.md) and [build status](WeightEstimation/docs/13_build_status.md). |
 
 ## Quick start
 

@@ -1,0 +1,1002 @@
+{
+  "$defs": {
+    "Bay": {
+      "additionalProperties": false,
+      "properties": {
+        "station": {
+          "$ref": "#/$defs/Station"
+        },
+        "energy_fraction": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Energy Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "station",
+        "energy_fraction"
+      ],
+      "title": "Bay",
+      "type": "object"
+    },
+    "BayLayout": {
+      "additionalProperties": false,
+      "properties": {
+        "bays": {
+          "items": {
+            "$ref": "#/$defs/Bay"
+          },
+          "title": "Bays",
+          "type": "array"
+        },
+        "hw_mass_per_bay_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "c_ret_kg_per_kn": {
+          "$ref": "#/$defs/Param"
+        },
+        "cutout_area_m2": {
+          "minimum": 0,
+          "title": "Cutout Area M2",
+          "type": "number"
+        },
+        "k_cut": {
+          "$ref": "#/$defs/Param"
+        },
+        "mass_per_kwh_band": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mass Per Kwh Band"
+        }
+      },
+      "required": [
+        "bays",
+        "hw_mass_per_bay_kg",
+        "c_ret_kg_per_kn",
+        "cutout_area_m2",
+        "k_cut"
+      ],
+      "title": "BayLayout",
+      "type": "object"
+    },
+    "ElectricPowertrain": {
+      "additionalProperties": false,
+      "properties": {
+        "motors": {
+          "items": {
+            "$ref": "#/$defs/Motor"
+          },
+          "title": "Motors",
+          "type": "array"
+        },
+        "pack": {
+          "$ref": "#/$defs/PackSpec"
+        },
+        "v_bus": {
+          "exclusiveMinimum": 0,
+          "title": "V Bus",
+          "type": "number"
+        },
+        "harness": {
+          "items": {
+            "$ref": "#/$defs/HarnessRun"
+          },
+          "title": "Harness",
+          "type": "array"
+        },
+        "thermal": {
+          "$ref": "#/$defs/ThermalSpec"
+        },
+        "lv_system_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "c_mount_kg_per_kn": {
+          "$ref": "#/$defs/Param"
+        },
+        "stations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Station"
+          },
+          "title": "Stations",
+          "type": "object"
+        }
+      },
+      "required": [
+        "motors",
+        "pack",
+        "v_bus",
+        "harness",
+        "thermal",
+        "lv_system_kg",
+        "c_mount_kg_per_kn"
+      ],
+      "title": "ElectricPowertrain",
+      "type": "object"
+    },
+    "FixedItem": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "avionics",
+            "seats",
+            "interior",
+            "brs",
+            "lv_battery",
+            "lighting",
+            "hv_protection",
+            "other"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "mass_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "station": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Station"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "estimate": {
+          "default": false,
+          "title": "Estimate",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "category",
+        "mass_kg"
+      ],
+      "title": "FixedItem",
+      "type": "object"
+    },
+    "FuselageGeom": {
+      "additionalProperties": false,
+      "properties": {
+        "length_m": {
+          "exclusiveMinimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "structural_length_m": {
+          "exclusiveMinimum": 0,
+          "title": "Structural Length M",
+          "type": "number"
+        },
+        "width_m": {
+          "exclusiveMinimum": 0,
+          "title": "Width M",
+          "type": "number"
+        },
+        "height_m": {
+          "exclusiveMinimum": 0,
+          "title": "Height M",
+          "type": "number"
+        },
+        "wetted_area_m2": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wetted Area M2"
+        },
+        "gear_on_fuselage": {
+          "default": false,
+          "title": "Gear On Fuselage",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "length_m",
+        "structural_length_m",
+        "width_m",
+        "height_m"
+      ],
+      "title": "FuselageGeom",
+      "type": "object"
+    },
+    "GearSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/GearType"
+        },
+        "main_strut_length_m": {
+          "exclusiveMinimum": 0,
+          "title": "Main Strut Length M",
+          "type": "number"
+        },
+        "nose_strut_length_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nose Strut Length M"
+        },
+        "limit_load_factor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit Load Factor"
+        },
+        "x_main_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "X Main M"
+        },
+        "x_nose_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "X Nose M"
+        }
+      },
+      "required": [
+        "type",
+        "main_strut_length_m"
+      ],
+      "title": "GearSpec",
+      "type": "object"
+    },
+    "GearType": {
+      "enum": [
+        "fixed_tricycle",
+        "fixed_tailwheel",
+        "retractable",
+        "amphibian"
+      ],
+      "title": "GearType",
+      "type": "string"
+    },
+    "HarnessRun": {
+      "additionalProperties": false,
+      "properties": {
+        "motor": {
+          "title": "Motor",
+          "type": "string"
+        },
+        "length_m": {
+          "exclusiveMinimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "power_kw": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Param"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "conductor": {
+          "default": "Cu",
+          "enum": [
+            "Cu",
+            "Al"
+          ],
+          "title": "Conductor",
+          "type": "string"
+        },
+        "j_allow_a_per_mm2": {
+          "$ref": "#/$defs/Param"
+        },
+        "f_ins": {
+          "$ref": "#/$defs/Param"
+        }
+      },
+      "required": [
+        "motor",
+        "length_m",
+        "j_allow_a_per_mm2",
+        "f_ins"
+      ],
+      "title": "HarnessRun",
+      "type": "object"
+    },
+    "Material": {
+      "enum": [
+        "composite_carbon",
+        "composite_glass",
+        "composite_mixed",
+        "metal_aluminium",
+        "steel_tube_fabric",
+        "wood"
+      ],
+      "title": "Material",
+      "type": "string"
+    },
+    "Motor": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "p_cont_kw": {
+          "exclusiveMinimum": 0,
+          "title": "P Cont Kw",
+          "type": "number"
+        },
+        "sp_motor_kw_per_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "sp_inv_kw_per_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "eta_chain": {
+          "$ref": "#/$defs/Param"
+        },
+        "location": {
+          "enum": [
+            "wing",
+            "fuselage"
+          ],
+          "title": "Location",
+          "type": "string"
+        },
+        "y_m": {
+          "default": 0.0,
+          "title": "Y M",
+          "type": "number"
+        },
+        "inverter_in_nacelle": {
+          "default": false,
+          "title": "Inverter In Nacelle",
+          "type": "boolean"
+        },
+        "prop_mass_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "fairing_mass_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "station": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Station"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "p_cont_kw",
+        "sp_motor_kw_per_kg",
+        "sp_inv_kw_per_kg",
+        "eta_chain",
+        "location",
+        "prop_mass_kg",
+        "fairing_mass_kg"
+      ],
+      "title": "Motor",
+      "type": "object"
+    },
+    "PackSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "energy_kwh": {
+          "$ref": "#/$defs/Param"
+        },
+        "specific_energy_wh_per_kg": {
+          "$ref": "#/$defs/Param"
+        },
+        "level": {
+          "enum": [
+            "cell",
+            "pack"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "eta_c2p": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Param"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "heat_kw": {
+          "$ref": "#/$defs/Param"
+        }
+      },
+      "required": [
+        "energy_kwh",
+        "specific_energy_wh_per_kg",
+        "level",
+        "heat_kw"
+      ],
+      "title": "PackSpec",
+      "type": "object"
+    },
+    "Param": {
+      "additionalProperties": false,
+      "description": "A scalar input: fixed, or a distribution sampled in Monte Carlo.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "dist": {
+          "default": "fixed",
+          "enum": [
+            "fixed",
+            "uniform",
+            "normal",
+            "lognormal",
+            "triangular"
+          ],
+          "title": "Dist",
+          "type": "string"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mode"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mean"
+        },
+        "sd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sd"
+        },
+        "assumption": {
+          "default": false,
+          "title": "Assumption",
+          "type": "boolean"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "title": "Param",
+      "type": "object"
+    },
+    "Station": {
+      "additionalProperties": false,
+      "properties": {
+        "x_m": {
+          "title": "X M",
+          "type": "number"
+        },
+        "z_m": {
+          "default": 0.0,
+          "title": "Z M",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x_m"
+      ],
+      "title": "Station",
+      "type": "object"
+    },
+    "SurfaceGeom": {
+      "additionalProperties": false,
+      "properties": {
+        "area_m2": {
+          "exclusiveMinimum": 0,
+          "title": "Area M2",
+          "type": "number"
+        },
+        "aspect_ratio": {
+          "exclusiveMinimum": 0,
+          "title": "Aspect Ratio",
+          "type": "number"
+        },
+        "taper": {
+          "exclusiveMinimum": 0,
+          "maximum": 1.0,
+          "title": "Taper",
+          "type": "number"
+        },
+        "sweep_qc_deg": {
+          "title": "Sweep Qc Deg",
+          "type": "number"
+        },
+        "tc": {
+          "exclusiveMaximum": 0.4,
+          "exclusiveMinimum": 0,
+          "title": "Tc",
+          "type": "number"
+        }
+      },
+      "required": [
+        "area_m2",
+        "aspect_ratio",
+        "taper",
+        "sweep_qc_deg",
+        "tc"
+      ],
+      "title": "SurfaceGeom",
+      "type": "object"
+    },
+    "ThermalSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "cooling": {
+          "enum": [
+            "air",
+            "liquid"
+          ],
+          "title": "Cooling",
+          "type": "string"
+        },
+        "k_th_kg_per_kw": {
+          "$ref": "#/$defs/Param"
+        },
+        "ambient_isa_delta_c": {
+          "default": 30.0,
+          "title": "Ambient Isa Delta C",
+          "type": "number"
+        }
+      },
+      "required": [
+        "cooling",
+        "k_th_kg_per_kw"
+      ],
+      "title": "ThermalSpec",
+      "type": "object"
+    },
+    "WingGeom": {
+      "additionalProperties": false,
+      "properties": {
+        "area_m2": {
+          "exclusiveMinimum": 0,
+          "title": "Area M2",
+          "type": "number"
+        },
+        "span_m": {
+          "exclusiveMinimum": 0,
+          "title": "Span M",
+          "type": "number"
+        },
+        "tc_root": {
+          "exclusiveMaximum": 0.4,
+          "exclusiveMinimum": 0,
+          "title": "Tc Root",
+          "type": "number"
+        },
+        "tc_tip": {
+          "exclusiveMaximum": 0.4,
+          "exclusiveMinimum": 0,
+          "title": "Tc Tip",
+          "type": "number"
+        },
+        "taper": {
+          "exclusiveMinimum": 0,
+          "maximum": 1.0,
+          "title": "Taper",
+          "type": "number"
+        },
+        "sweep_qc_deg": {
+          "title": "Sweep Qc Deg",
+          "type": "number"
+        },
+        "a_per_rad": {
+          "exclusiveMinimum": 0,
+          "title": "A Per Rad",
+          "type": "number"
+        },
+        "cbar_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cbar M"
+        },
+        "x_lemac_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "X Lemac M"
+        },
+        "wing_fuel_kg": {
+          "default": 0.0,
+          "title": "Wing Fuel Kg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "area_m2",
+        "span_m",
+        "tc_root",
+        "tc_tip",
+        "taper",
+        "sweep_qc_deg",
+        "a_per_rad"
+      ],
+      "title": "WingGeom",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "default": "HS1",
+      "title": "Name",
+      "type": "string"
+    },
+    "mass_guess_kg": {
+      "exclusiveMinimum": 0,
+      "title": "Mass Guess Kg",
+      "type": "number"
+    },
+    "wing": {
+      "$ref": "#/$defs/WingGeom"
+    },
+    "htail": {
+      "$ref": "#/$defs/SurfaceGeom"
+    },
+    "vtail": {
+      "$ref": "#/$defs/SurfaceGeom"
+    },
+    "t_tail": {
+      "default": false,
+      "title": "T Tail",
+      "type": "boolean"
+    },
+    "tail_arm_m": {
+      "exclusiveMinimum": 0,
+      "title": "Tail Arm M",
+      "type": "number"
+    },
+    "fuselage": {
+      "$ref": "#/$defs/FuselageGeom"
+    },
+    "cl_max_clean": {
+      "exclusiveMinimum": 0,
+      "title": "Cl Max Clean",
+      "type": "number"
+    },
+    "cl_max_land": {
+      "exclusiveMinimum": 0,
+      "title": "Cl Max Land",
+      "type": "number"
+    },
+    "cl_max_includes_blowing": {
+      "default": false,
+      "title": "Cl Max Includes Blowing",
+      "type": "boolean"
+    },
+    "cl_max_clean_unblown": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cl Max Clean Unblown"
+    },
+    "cl_max_land_unblown": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cl Max Land Unblown"
+    },
+    "vc_kt": {
+      "exclusiveMinimum": 0,
+      "title": "Vc Kt",
+      "type": "number"
+    },
+    "vh_kt": {
+      "exclusiveMinimum": 0,
+      "title": "Vh Kt",
+      "type": "number"
+    },
+    "gear": {
+      "$ref": "#/$defs/GearSpec"
+    },
+    "powertrain": {
+      "$ref": "#/$defs/ElectricPowertrain"
+    },
+    "battery_bays": {
+      "$ref": "#/$defs/BayLayout"
+    },
+    "equipment": {
+      "items": {
+        "$ref": "#/$defs/FixedItem"
+      },
+      "title": "Equipment",
+      "type": "array"
+    },
+    "brs_fitted": {
+      "default": true,
+      "title": "Brs Fitted",
+      "type": "boolean"
+    },
+    "has_ecs": {
+      "default": false,
+      "title": "Has Ecs",
+      "type": "boolean"
+    },
+    "material_by_component": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Material"
+      },
+      "title": "Material By Component",
+      "type": "object"
+    },
+    "cert_bases": {
+      "default": [
+        "ASTM_F2245",
+        "FAR23_L1"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "title": "Cert Bases",
+      "type": "array"
+    },
+    "cert_group_level": {
+      "default": "ASTM_F2245",
+      "enum": [
+        "ASTM_F2245",
+        "FAR23_L1"
+      ],
+      "title": "Cert Group Level",
+      "type": "string"
+    },
+    "k_neg": {
+      "default": 1.0,
+      "title": "K Neg",
+      "type": "number"
+    },
+    "methods": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Methods",
+      "type": "object"
+    },
+    "year": {
+      "default": 2026,
+      "title": "Year",
+      "type": "integer"
+    },
+    "seats": {
+      "default": 2,
+      "title": "Seats",
+      "type": "integer"
+    },
+    "payload_kg": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Payload Kg"
+    },
+    "occupant_kg": {
+      "default": 86.0,
+      "title": "Occupant Kg",
+      "type": "number"
+    },
+    "n_occupants": {
+      "default": 2,
+      "title": "N Occupants",
+      "type": "integer"
+    },
+    "light_pilot_kg": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Light Pilot Kg"
+    },
+    "seat_station": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Station"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "stations": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/Station"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stations"
+    },
+    "gp_out_of_class": {
+      "default": false,
+      "title": "Gp Out Of Class",
+      "type": "boolean"
+    },
+    "provenance": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Provenance",
+      "type": "array"
+    }
+  },
+  "required": [
+    "mass_guess_kg",
+    "wing",
+    "htail",
+    "vtail",
+    "tail_arm_m",
+    "fuselage",
+    "cl_max_clean",
+    "cl_max_land",
+    "vc_kt",
+    "vh_kt",
+    "gear",
+    "powertrain",
+    "battery_bays",
+    "equipment",
+    "material_by_component"
+  ],
+  "title": "HS1Config",
+  "type": "object"
+}
