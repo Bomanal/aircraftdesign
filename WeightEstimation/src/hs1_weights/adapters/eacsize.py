@@ -50,6 +50,7 @@ COMPARE = {
     "motors+inverters": ("e_powertrain",), "propellers": ("propeller",), "battery_pack": ("battery_pack",),
 }
 GEAR = {"fixed": "fixed_tricycle", "retractable": "retractable"}
+GRID_POINTS = 64        # energy_fn: above this many distinct masses, interpolate eacsize on a mass grid
 
 
 def load_run(path: str | Path, run: str | None = None) -> dict[str, Any]:
@@ -153,6 +154,9 @@ def energy_fn_from_eacsize(run: dict[str, Any], wpp_dir: str | Path) -> Callable
     The airframe is frozen at the run's geometry and installed power (eacsize ``geometry_mode = "fixed"``); only
     the mass changes. Returns the nominal pack energy that meets the run's mission target (with its reserve, DoD,
     end-of-life SoH), specific power and C-rate limits: max of the three pack-mass needs x pack_wh_kg.
+    For arrays with more than GRID_POINTS distinct masses (Monte Carlo closure) eacsize is evaluated on a
+    GRID_POINTS mass grid and interpolated linearly; masses above the heaviest feasible grid point are
+    treated as infeasible (infinite energy).
     """
     model, sizing = _import_eacsize(wpp_dir)
     s = run["results"]["summary"]
@@ -176,7 +180,19 @@ def energy_fn_from_eacsize(run: dict[str, Any], wpp_dir: str | Path) -> Callable
             return one(float(w))
         w = np.asarray(w, dtype=float)
         uniq, inv = np.unique(np.round(w, 3), return_inverse=True)
-        return np.array([one(u) for u in uniq])[inv]
+        if len(uniq) <= GRID_POINTS:
+            return np.array([one(u) for u in uniq])[inv]
+        # Monte Carlo: E(W) is smooth and monotone, so evaluate eacsize on a grid and interpolate
+        ok = np.isfinite(uniq) & (uniq > 0)
+        grid = np.linspace(uniq[ok].min(), uniq[ok].max(), GRID_POINTS)
+        eg = np.array([one(g) for g in grid])
+        fin = np.isfinite(eg)
+        out = np.full(len(uniq), np.inf)
+        if fin.any():
+            top = grid[fin].max()
+            m = ok & (uniq <= top)
+            out[m] = np.interp(uniq[m], grid[fin], eg[fin])
+        return out[inv]
     return energy
 
 

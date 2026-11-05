@@ -92,6 +92,10 @@ shape, and the bottom-up priors. It then predicts masses with uncertainty, and c
    res = close_point(cfg, ea.energy_fn_from_eacsize(run, "../WPPestimation"), cfg.payload_kg)
    ```
 
+**From the eacsize dashboard:** every run in the eacsize web UI (`python3 -m eacsize`) has an **HS1 weights**
+button. It runs this same pipeline on demand and shows the result as a card on the dashboard (see the
+[eacsize README](../WPPestimation/eacsize/README.md#hs1-weights-button-weightestimation-pipeline)).
+
 What carries over and how is documented in the `adapters/eacsize.py` docstring, and it is recorded per run in
 `report.assumptions` ("input provenance: ..."). eacsize's `pack_wh_kg` is pack-level, so for these runs the
 pack is modelled with η_c2p = 1. Example (R0003, illustrative overlay, prior k): W_E P50 647 kg against eacsize's

@@ -33,6 +33,9 @@ def _report_table(rep: Any) -> str:
 
 
 def _from_eacsize(a: argparse.Namespace) -> None:
+    import datetime as dt
+    import time
+    t0 = time.time()
     from .adapters import eacsize as ea
     from .api import predict
     from .closure import close_mc, close_point
@@ -46,7 +49,10 @@ def _from_eacsize(a: argparse.Namespace) -> None:
     print(f"\n{'eacsize vs hs1_weights':28s}{'eacsize':>9s}{'P10':>9s}{'P50':>9s}{'P90':>9s}")
     for r in ea.comparison(run, rep):
         print(f"{r['component']:28s}{r['eacsize_kg']:9.1f}{r['p10']:9.1f}{r['p50']:9.1f}{r['p90']:9.1f}")
-    out: dict[str, Any] = {"report": rep.model_dump(mode="json")}
+    out: dict[str, Any] = {"run_id": run.get("id"), "run_label": run.get("label"), "config_name": cfg.name,
+                           "overlay": str(a.overlay), "eacsize_mtom_kg": run["results"]["summary"]["mtom_kg"],
+                           "eacsize_battery_kwh": run["results"]["summary"]["battery_kwh"],
+                           "comparison": ea.comparison(run, rep), "report": rep.model_dump(mode="json")}
     if a.close or a.mc:
         energy = ea.energy_fn_from_eacsize(run, a.wpp)
         payload = cfg.payload_kg or 0.0
@@ -69,6 +75,8 @@ def _from_eacsize(a: argparse.Namespace) -> None:
                       f"{m['mtow']['p90']:.0f} kg; converged {m['converged_fraction']:.1%}")
             if "note" in m:
                 print("  " + m["note"])
+    out["generated"] = dt.datetime.now().isoformat(timespec="seconds")
+    out["runtime_s"] = time.time() - t0
     if a.out:
         Path(a.out).write_text(json.dumps(out, indent=2, default=str) + "\n")
 

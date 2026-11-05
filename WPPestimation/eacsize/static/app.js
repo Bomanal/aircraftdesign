@@ -326,7 +326,8 @@ function renderResult(rec) {
       <div class="rhead"><h2>${esc(rec.id)} · ${esc(rec.label)}</h2><span class="pill ${r.status}">${r.status}</span>
         <span class="meta">${esc(rec.timestamp)} · ${esc(rec.inputs.mode)} · geometry ${esc(rec.inputs.geometry_mode)} ·
         weights ${esc(rec.assumptions.weight_method)} · ${fmt(rec.assumptions.pack_wh_kg, 0)} Wh/kg · ${r.closure.evaluations} evaluation(s), ${fmt(r.runtime_s, 2)} s</span>
-        <button class="small" type="button" id="loadcur">Load these inputs</button></div>
+        <button class="small" type="button" id="loadcur">Load these inputs</button>
+        <button class="small" type="button" id="hs1cur" data-hs1="${esc(rec.id)}">${hs1Label(rec.id)}</button></div>
       ${r.messages.length ? `<ul class="msgs">${r.messages.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
       <div class="kpis">${kpiHtml}</div>
     </div>
@@ -364,7 +365,9 @@ function renderResult(rec) {
     ${regressionCard(r, s)}
     <div class="card"><h3>Inputs and assumptions changed from default</h3><div class="tbl-wrap">${usedHtml}</div></div>`;
   $("#loadcur").onclick = () => { setValues(rec); $("#label").value = rec.label; };
+  bindHs1Buttons($("#result"));
   renderHistory();
+  showStoredHs1(rec.id);
 }
 
 function regressionCard(r, s) {
@@ -418,13 +421,15 @@ function renderHistory() {
       <td class="n">${fmt(s.mtom_kg, 0)}</td><td class="n">${fmt(s.battery_kwh, 1)}</td><td class="n">${fmt(s.installed_power_kw, 0)}</td>
       <td class="n">${fmt(s.ld_max, 1)}</td><td class="n">${fmt(s.range_cruise_km, 0)}</td><td class="n">${fmt(s.endurance_vmp_h, 2)}</td>
       <td class="note">${esc(r.timestamp.replace("T", " "))}</td>
+      <td><button class="small" type="button" data-hs1="${esc(r.id)}" aria-label="Run the HS1 weights pipeline for ${esc(r.id)}">${hs1Label(r.id)}</button></td>
       <td><button class="small" type="button" data-del="${r.id}" aria-label="Delete ${r.id}">Delete</button></td></tr>`;
   }).join("");
   $("#history").innerHTML = `<div class="card"><div class="histbar"><h3>Previous runs (${runs.length})</h3>
-    <span><button type="button" id="cmp" ${S.selected.size < 2 ? "disabled" : ""}>Compare selected (${S.selected.size})</button></span></div>
+    <span class="hs1opts">${hs1Options()}<button type="button" id="cmp" ${S.selected.size < 2 ? "disabled" : ""}>Compare selected (${S.selected.size})</button></span></div>
     <div class="tbl-wrap"><table><thead><tr><th></th><th>Run</th><th>Label</th><th>Status</th><th>Mode</th><th>Seats</th><th>Wh/kg</th>
-    <th>MTOM kg</th><th>kWh</th><th>kW</th><th>L/D</th><th>Range km</th><th>End. h</th><th>Time</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="note">Click a row to show that run. Tick two or more to compare them.</p></div>`;
+    <th>MTOM kg</th><th>kWh</th><th>kW</th><th>L/D</th><th>Range km</th><th>End. h</th><th>Time</th><th>HS1</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Click a row to show that run. Tick two or more to compare them. <b>HS1 weights</b> runs the
+    WeightEstimation pipeline for that run and shows the result as a card above.</p></div>`;
   $("#history").querySelectorAll("tr.clickable").forEach((tr) => tr.addEventListener("click", async (e) => {
     if (e.target.closest("input,button")) return;
     renderResult(await api(`/api/runs/${tr.dataset.id}`));
@@ -438,6 +443,7 @@ function renderHistory() {
     if (!confirm(`Delete run ${b.dataset.del} from runs.json and runs.csv?`)) return;
     await api(`/api/runs/${b.dataset.del}`, { method: "DELETE" });
     S.selected.delete(b.dataset.del);
+    dropHs1(b.dataset.del);
     await refreshRuns();
     if (S.current && S.current.id === b.dataset.del) {
       S.current = null;
@@ -447,6 +453,11 @@ function renderHistory() {
   }));
   const cmp = $("#cmp");
   if (cmp) cmp.onclick = compareSelected;
+  bindHs1Buttons($("#history"));
+  for (const k of ["close", "mc"]) {
+    const cb = $(`#hs1${k}`);
+    if (cb) cb.onchange = () => { H.opts[k] = cb.checked; };
+  }
 }
 
 async function compareSelected() {
@@ -476,6 +487,160 @@ async function compareSelected() {
 async function refreshRuns() {
   S.runs = await api("/api/runs");
   renderHistory();
+}
+
+// ---------------------------------------------------------------------------------------
+// HS1 weights pipeline (WeightEstimation / hs1_weights), on demand for each stored run
+// ---------------------------------------------------------------------------------------
+const H = { status: null, done: new Set(), busy: new Set(), shown: new Map(), order: [], opts: { close: true, mc: true } };
+const SEV = { info: "pass", warn: "warn", error: "fail" };
+
+async function loadHs1Status() {
+  try { H.status = await api("/api/hs1"); H.done = new Set(H.status.results); }
+  catch (e) { H.status = { available: false, error: e.message }; }
+}
+
+function hs1Label(id) {
+  return H.busy.has(id) ? "Running HS1…" : H.done.has(id) ? "Re-run HS1" : "HS1 weights";
+}
+
+function hs1Options() {
+  const dis = H.status && H.status.available ? "" : "disabled";
+  return `<label class="inline" title="MTOW closure with the eacsize mission energy"><input type="checkbox" id="hs1close" ${H.opts.close ? "checked" : ""} ${dis}> HS1 closure</label>` +
+    `<label class="inline" title="Per-sample Monte Carlo closure (about 5 s more)"><input type="checkbox" id="hs1mc" ${H.opts.mc ? "checked" : ""} ${dis}> Monte Carlo</label>`;
+}
+
+function bindHs1Buttons(root) {
+  root.querySelectorAll("[data-hs1]").forEach((b) => {
+    const id = b.dataset.hs1;
+    const ok = H.status && H.status.available;
+    b.disabled = !ok || H.busy.has(id);
+    b.title = ok ? "Run the WeightEstimation pipeline for this run" :
+      `WeightEstimation not found (${H.status?.hs1_dir || H.status?.error || "unknown"})`;
+    b.onclick = (e) => { e.stopPropagation(); runHs1(id); };
+  });
+  root.querySelectorAll("[data-hs1close]").forEach((b) => {
+    b.onclick = () => { H.order = H.order.filter((x) => x !== b.dataset.hs1close); renderHs1Cards(); };
+  });
+}
+
+function refreshHs1Buttons() {
+  renderHistory();
+  const cur = $("#hs1cur");
+  if (cur) { cur.textContent = hs1Label(cur.dataset.hs1); bindHs1Buttons($("#result")); }
+}
+
+function front(id) { H.order = [id, ...H.order.filter((x) => x !== id)]; }
+
+async function runHs1(id) {
+  if (H.busy.has(id)) return;
+  H.busy.add(id); front(id); refreshHs1Buttons(); renderHs1Cards(id);
+  try {
+    const res = await api(`/api/runs/${id}/hs1`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ close: H.opts.close, mc: H.opts.close && H.opts.mc }) });
+    H.shown.set(id, res); H.done.add(id);
+  } catch (e) {
+    H.shown.set(id, { run_id: id, error: e.message });
+  } finally {
+    H.busy.delete(id); refreshHs1Buttons(); renderHs1Cards(id);
+  }
+}
+
+async function showStoredHs1(id) {
+  if (!H.done.has(id) || H.busy.has(id)) return;
+  if (!H.shown.has(id)) {
+    try { H.shown.set(id, await api(`/api/runs/${id}/hs1`)); } catch { return; }
+  }
+  front(id); renderHs1Cards();
+}
+
+function dropHs1(id) {
+  H.done.delete(id); H.shown.delete(id); H.order = H.order.filter((x) => x !== id); renderHs1Cards();
+}
+
+function renderHs1Cards(focus) {
+  const box = $("#hs1cards");
+  box.innerHTML = H.order.map((id) => H.busy.has(id) ? hs1Running(id) : hs1Card(id, H.shown.get(id))).join("");
+  bindHs1Buttons(box);
+  if (focus) document.getElementById(`hs1-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function hs1Head(id, title, pill, meta) {
+  return `<div class="rhead"><h2>HS1 weights · ${esc(id)}${title ? ` · ${esc(title)}` : ""}</h2>${pill}` +
+    `<span class="meta">${meta || ""}</span>` +
+    `<button class="small" type="button" data-hs1="${esc(id)}">${hs1Label(id)}</button>` +
+    `<button class="small" type="button" data-hs1close="${esc(id)}" aria-label="Hide this card">Hide</button></div>`;
+}
+
+function hs1Running(id) {
+  return `<div class="card hs1" id="hs1-${esc(id)}">${hs1Head(id, "", '<span class="pill warning">running</span>',
+    "WeightEstimation pipeline: predict, then closure with the eacsize mission energy …")}</div>`;
+}
+
+const dist = (d, n = 0) => (d ? `${fmt(d.p50, n)}<small>P10–P90 ${fmt(d.p10, n)}–${fmt(d.p90, n)}</small>` : "–");
+const kpiBox = (k, v, note) => `<div class="kpi"><div class="k">${esc(k)}</div><div class="v">${v}</div>${note ? `<div class="k">${note}</div>` : ""}</div>`;
+
+function hs1Card(id, x) {
+  if (!x) return "";
+  if (x.error) {
+    return `<div class="card hs1" id="hs1-${esc(id)}">${hs1Head(id, "", '<span class="pill fail">failed</span>', "")}` +
+      `<div class="error">${esc(x.error)}</div></div>`;
+  }
+  const rep = x.report, cal = rep.calibration, cp = x.closure_point, mc = x.closure_mc;
+  const errs = rep.rule_flags.filter((f) => f.severity === "error").length;
+  const warns = rep.rule_flags.filter((f) => f.severity === "warn").length;
+  const pill = `<span class="pill ${errs ? "fail" : warns ? "warn" : "pass"}">${errs ? errs + " error" : warns ? warns + " warn" : "ok"}</span>`;
+  const meta = `${esc((x.generated || "").replace("T", " "))} · ${fmt(x.runtime_s, 1)} s · k: ${esc(cal.engine)} · ` +
+    `${rep.versions.n_samples} samples · seed ${rep.versions.seed}`;
+  const banner = cal.engine === "prior"
+    ? `<p class="banner">No fleet calibration yet: technology factors k are drawn from their priors. HS1 detail that eacsize
+       does not model (DEP split, bays, equipment, materials, stations, bottom-up priors) comes from
+       <code>${esc(x.overlay)}</code>, which holds illustrative placeholders. Treat these numbers as indicative.</p>` : "";
+  let kpis = kpiBox("Empty weight W_E [kg]", dist(rep.empty_weight)) +
+    kpiBox("W_E + payload at eacsize MTOM [kg]", dist(rep.mtow), `eacsize MTOM ${fmt(x.eacsize_mtom_kg, 0)} kg`);
+  if (cp) {
+    kpis += kpiBox("Closed MTOW [kg]", fmt(cp.mtow_kg, 0), `${cp.converged ? "converged" : "NOT converged"} in ${cp.iterations} it. · eacsize ${fmt(x.eacsize_mtom_kg, 0)} kg`) +
+      kpiBox("Pack energy after closure [kWh]", fmt(cp.energy_wh / 1000, 1), `eacsize ${fmt(x.eacsize_battery_kwh, 1)} kWh`);
+  }
+  if (mc) {
+    kpis += kpiBox("Monte Carlo closed MTOW [kg]", dist(mc.mtow)) +
+      kpiBox("Samples that closed", `${fmt(mc.converged_fraction * 100, 1)}<small>%</small>`,
+        mc.diverged_fraction ? `${fmt(mc.diverged_fraction * 100, 1)}% weight snowball` : "");
+  }
+  const comp = x.comparison.map((r) => `<tr><td>${esc(r.component.replace(/_/g, " "))}</td><td class="n">${fmt(r.eacsize_kg, 1)}</td>` +
+    `<td class="n">${fmt(r.p10, 1)}</td><td class="n">${fmt(r.p50, 1)}</td><td class="n">${fmt(r.p90, 1)}</td>` +
+    `<td class="n">${r.p50 - r.eacsize_kg >= 0 ? "+" : ""}${fmt(r.p50 - r.eacsize_kg, 1)}</td></tr>`).join("");
+  const flags = rep.rule_flags.map((f) => `<tr><td>${esc(f.id)}</td><td><span class="pill ${SEV[f.severity] || "warn"}">${esc(f.severity)}</span></td><td>${esc(f.message)}</td></tr>`).join("");
+  const sob = Object.entries(rep.sobol || {});
+  const smax = Math.max(0.01, ...sob.map(([, v]) => v));
+  const sobol = sob.map(([k, v]) => `<div class="row"><span title="${esc(k)}">${esc(k.replace(/^powertrain\./, "").replace(/^battery_bays\./, "bays."))}</span>` +
+    `<div class="bar" style="width:${(Math.max(v, 0) / smax * 100).toFixed(1)}%;background:var(--s4)"></div><span class="n">${fmt(v, 2)}</span></div>`).join("");
+  const comps = Object.entries(rep.components).map(([k, c]) => `<tr><td>${esc(k.replace(/_/g, " "))}${c.transcription_verified ? "" : ' <span class="tag" title="equation transcription not verified">U</span>'}</td>` +
+    `<td class="n">${fmt(c.mass_kg.p10, 1)}</td><td class="n">${fmt(c.mass_kg.p50, 1)}</td><td class="n">${fmt(c.mass_kg.p90, 1)}</td>` +
+    `<td>${esc(c.method)}</td><td class="n">${c.k ? fmt(c.k.p50, 3) : "–"}</td><td class="note">${esc(c.governing_load_case)}</td></tr>`).join("");
+  const cg = rep.cg ? Object.entries(rep.cg.cases).map(([k, c]) => `<tr><td>${esc(k.replace(/_/g, " "))}</td><td class="n">${fmt(c.mass_kg.p50, 0)}</td>` +
+    `<td class="n">${fmt(c.x_m.p50, 2)}</td><td class="n">${c.pct_mac ? fmt(c.pct_mac.p50, 1) : "–"}</td>` +
+    `<td class="n">${c.tip_over_risk_frac == null ? "–" : fmt(c.tip_over_risk_frac * 100, 0) + "%"}</td></tr>`).join("") : "";
+  const st = rep.stall_area_min_m2;
+  return `<div class="card hs1" id="hs1-${esc(id)}">${hs1Head(id, x.run_label, pill, meta)}${banner}
+    <div class="kpis">${kpis}</div>
+    <div class="grid2" style="margin-top:14px">
+      <div><h3>eacsize vs HS1 weights [kg]</h3><div class="tbl-wrap"><table><thead><tr><th>Component</th><th>eacsize</th><th>P10</th><th>P50</th><th>P90</th><th>Δ P50</th></tr></thead><tbody>${comp}</tbody></table></div></div>
+      <div><h3>Rule checks</h3><div class="tbl-wrap"><table><tbody>${flags}</tbody></table></div>
+        <p class="note">Min. wing area: V_S1 ≤ 59 kt ${fmt(st.VS1_59kt_clean.p50, 2)} m², V_S0 ≤ 61 kt ${fmt(st.VS0_61kt_landing.p50, 2)} m² (current ${fmt(st.current_area_m2, 2)} m², power-idle C_L,max).</p></div>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="bars"><h3>Variance drivers of W_E (Sobol total index)</h3>${sobol || '<p class="note">not computed</p>'}</div>
+      <div><h3>CG loading cases (P50)</h3>${cg ? `<div class="tbl-wrap"><table><thead><tr><th>Case</th><th>kg</th><th>x m</th><th>%MAC</th><th>tip-over</th></tr></thead><tbody>${cg}</tbody></table></div>` : '<p class="note">no stations in the overlay</p>'}</div>
+    </div>
+    <details class="more"><summary>All components (${Object.keys(rep.components).length})</summary><div class="tbl-wrap"><table><thead><tr><th>Component</th><th>P10</th><th>P50</th><th>P90</th><th>Method</th><th>k P50</th><th>Governing load case</th></tr></thead><tbody>${comps}</tbody></table></div>
+      <p class="note"><span class="tag">U</span> equation transcription not yet verified against the source text.</p></details>
+    <details class="more"><summary>Assumptions (${rep.assumptions.length}) · unverified criteria (${rep.unverified_criteria.length})</summary>
+      <ul class="note">${rep.assumptions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+      <ul class="note">${rep.unverified_criteria.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></details>
+    <p class="note"><a href="/api/runs/${encodeURIComponent(id)}/hs1" target="_blank" rel="noopener">Full result JSON</a> ·
+      stored in runs/hs1_weights/${esc(id)}.json</p>
+  </div>`;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -510,6 +675,7 @@ async function init() {
   applyPreset("");
   $("#run").onclick = runDesign;
   $("#reset").onclick = () => { sel.value = ""; applyPreset(""); };
+  await loadHs1Status();
   await refreshRuns();
   if (S.runs.length) {
     const last = await api(`/api/runs/${S.runs[S.runs.length - 1].id}`);
