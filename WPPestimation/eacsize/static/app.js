@@ -428,6 +428,7 @@ function renderHistory() {
     <span class="hs1opts">${hs1Options()}<button type="button" id="cmp" ${S.selected.size < 2 ? "disabled" : ""}>Compare selected (${S.selected.size})</button></span></div>
     <div class="tbl-wrap"><table><thead><tr><th></th><th>Run</th><th>Label</th><th>Status</th><th>Mode</th><th>Seats</th><th>Wh/kg</th>
     <th>MTOM kg</th><th>kWh</th><th>kW</th><th>L/D</th><th>Range km</th><th>End. h</th><th>Time</th><th>HS1</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${H.status && !H.status.available ? `<p class="banner">HS1 weights buttons are disabled: ${esc(H.status.reason || "")}</p>` : ""}
     <p class="note">Click a row to show that run. Tick two or more to compare them. <b>HS1 weights</b> runs the
     WeightEstimation pipeline for that run and shows the result as a card above.</p></div>`;
   $("#history").querySelectorAll("tr.clickable").forEach((tr) => tr.addEventListener("click", async (e) => {
@@ -496,8 +497,15 @@ const H = { status: null, done: new Set(), busy: new Set(), shown: new Map(), or
 const SEV = { info: "pass", warn: "warn", error: "fail" };
 
 async function loadHs1Status() {
-  try { H.status = await api("/api/hs1"); H.done = new Set(H.status.results); }
-  catch (e) { H.status = { available: false, error: e.message }; }
+  try {
+    H.status = await api("/api/hs1"); H.done = new Set(H.status.results);
+    if (!H.status.available) H.status.reason = `WeightEstimation or the overlay was not found (${H.status.hs1_dir}).`;
+  } catch (e) {
+    // a server started before the HS1 feature existed serves the new page but has no /api/hs1 route
+    H.status = { available: false, reason: e.message === "not found"
+      ? "This dashboard server was started before the HS1 weights feature was added. Restart it (Ctrl+C, then python3 -m eacsize) and reload the page."
+      : `HS1 status unavailable: ${e.message}` };
+  }
 }
 
 function hs1Label(id) {
@@ -515,8 +523,7 @@ function bindHs1Buttons(root) {
     const id = b.dataset.hs1;
     const ok = H.status && H.status.available;
     b.disabled = !ok || H.busy.has(id);
-    b.title = ok ? "Run the WeightEstimation pipeline for this run" :
-      `WeightEstimation not found (${H.status?.hs1_dir || H.status?.error || "unknown"})`;
+    b.title = ok ? "Run the WeightEstimation pipeline for this run" : (H.status?.reason || "HS1 weights unavailable");
     b.onclick = (e) => { e.stopPropagation(); runHs1(id); };
   });
   root.querySelectorAll("[data-hs1close]").forEach((b) => {
