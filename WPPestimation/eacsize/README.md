@@ -20,6 +20,31 @@ Every run, from the UI or the CLI, is stored in `runs/`:
 
 Use `--data-dir` to keep separate studies apart.
 
+### HS1 weights button (WeightEstimation pipeline)
+
+Every stored run has an **HS1 weights** button: in its row of the *Previous runs* table, and in the header of the
+run being shown. Pressing it runs the [WeightEstimation](../../WeightEstimation/README.md) (`hs1_weights`)
+pipeline for that run on demand, and shows the result as a separate card on the dashboard. The pipeline:
+
+- builds an HS1 configuration from the run plus an HS1 overlay;
+- predicts the component masses with P10/P50/P90, W_E, CG and rule checks;
+- compares each component with eacsize's masses;
+- with *HS1 closure* ticked, re-closes MTOM using this run's mission energy;
+- with *Monte Carlo* ticked, repeats the closure per sample.
+
+Press the button again (*Re-run HS1*) to refresh a card. *Hide* removes it from the page. A stored result
+reappears when you select its run.
+
+- A run takes about 3 s with closure, and about 6 s with Monte Carlo as well.
+- Results are stored as `runs/hs1_weights/<run id>.json`; `runs.json` and `runs.csv` are not changed. Deleting a
+  run also deletes its HS1 result.
+- The pipeline runs in a subprocess with `WeightEstimation/.venv/bin/python`, so eacsize itself still needs only
+  the standard library. Override the defaults with the environment variables `HS1_DIR` (WeightEstimation
+  directory), `HS1_OVERLAY` (overlay JSON, default `WeightEstimation/examples/eacsize_overlay.json`, which holds
+  illustrative placeholders) and `HS1_PYTHON` (interpreter).
+- API: `POST /api/runs/<id>/hs1` (body `{"close": true, "mc": true}`), `GET` and `DELETE` on the same path, and
+  `GET /api/hs1` for status.
+
 ## Modes and options
 
 | Setting | Options |
@@ -54,6 +79,7 @@ To add a method, return a dict of group name to kg from a function in `physics.p
 | `mission.py` | 7 and 9: sortie energy, range and endurance at beginning and end of life |
 | `sizing.py` | Calibration, airframe build, mass closure, checks (step 8), result record |
 | `presets.py`, `store.py`, `ui.py`, `static/`, `verify.py` | Presets, run storage, UI, verification |
+| `hs1_bridge.py` | On-demand WeightEstimation (HS1 weights) pipeline for a stored run, used by the UI |
 
 ## Known limitations
 

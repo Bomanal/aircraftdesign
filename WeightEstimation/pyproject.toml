@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hs1-weights"
+version = "0.2.0"
+description = "HS1 aircraft weight-prediction module: physics-based component models calibrated on GA fleet data"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26", "pandas>=2.0", "scipy>=1.11", "pydantic>=2.5", "pyarrow>=14"]
+
+[project.optional-dependencies]
+bayes = ["numpyro>=0.15", "jax>=0.4", "arviz>=0.17", "netCDF4>=1.6"]
+gp = ["scikit-learn>=1.4"]
+dev = ["pytest>=8", "hypothesis>=6", "ruff>=0.4", "mypy>=1.8"]
+
+[project.scripts]
+hs1-weights = "hs1_weights.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: statistical / integration tests (nightly)"]
+addopts = "-m 'not slow'"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E741", "UP038", "B007"]
+
+[tool.ruff.lint.per-file-ignores]
+# seed files from the handover package are kept as delivered
+"src/hs1_weights/run_cert_envelope.py" = ["UP031", "E501"]
+"tests/test_normalize.py" = ["E501"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"   # jax ships 3.12-only stub syntax; runtime floor stays 3.10
+files = ["src/hs1_weights"]
+
+[[tool.mypy.overrides]]
+module = ["pyarrow.*", "scipy.*", "sklearn.*", "numpyro.*", "jax.*", "jaxlib.*", "arviz.*", "pandas.*", "xarray.*",
+          "eacsize", "eacsize.*"]   # eacsize: WPPestimation, imported at runtime from its directory
+ignore_missing_imports = true
+follow_imports = "skip"
