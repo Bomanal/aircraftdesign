@@ -15,7 +15,7 @@ Why code exists beyond Phase 1 although P1-5 is open: see doc 12 SC-1.
 | P1-2 `data/io.py` | PASS | `tests/test_data_io.py`: schema errors reported with field paths (`mtow.value`, `components.0.mass...`); provenance check (every value → registered `Source`) |
 | P1-3 N1–N12 | PASS | `tests/test_normalize_pipeline.py`: unit tests per routine; hypothesis idempotence `N(N(x)) = N(x)` |
 | P1-4 `dataset.py` | PASS | `tests/test_dataset.py`: rebuild byte-identical (parquet, log, manifest); content hash |
-| P1-5 ≥ 60 Tier A/B records, ≥ 15 breakdowns, ≥ 5 electric | **OPEN** | `data/records/` is empty. Needs TCDS/POH acquisition and human review (doc 04 §6); the assistant must not supply values (CLAUDE.md rule 2). Review-queue tooling is ready (`data/review.py`). |
+| P1-5 ≥ 60 Tier A/B records, ≥ 15 breakdowns, ≥ 5 electric | **OPEN** | Owner fleet table `data/fleet/fleet_clusters.csv` imported (47 aircraft, 7 clusters). Tier A/B MTOW and EW: 10 records, of which **6 are eligible** (C172 S, C182 T, DA40 NG, Velis Electro, P2008 JC, RV-12 iS). Taurus Electro, RV-7, P2010 and RV-10 need `variant_hint` (doc 04 §2.1). 0 breakdowns; 1 eligible electric. C+ records serve NI imputation only (SC-27). Every eligible record relies on design priors (SC-29); its imputation σ is 0.075–0.13. |
 
 ## Phase 2 — Component library
 

@@ -33,9 +33,10 @@ VALUE_FIELDS = (
     "fuselage_wetted_area", "fuselage_structural_length", "htail_area", "vtail_area", "htail_aspect_ratio",
     "htail_taper", "htail_tc", "htail_sweep_qc", "vtail_aspect_ratio", "vtail_taper", "vtail_tc", "vtail_sweep_qc",
     "tail_arm", "main_gear_length", "nose_gear_length",
-    "n_limit_pos", "n_limit_neg", "v_ne", "v_c", "v_d", "v_h", "v_s0", "v_s1", "q_c", "q_d", "rated_power_total",
+    "n_limit_pos", "n_limit_neg", "v_ne", "v_no", "v_c", "v_d", "v_h", "v_s0", "v_s1", "q_c", "q_d",
+    "rated_power_total",
     "engine_dry_mass", "fuel_capacity_total", "fuel_capacity_usable", "fuel_integral_volume", "oil_capacity",
-    "battery_energy_total", "battery_mass_installed", "pack_wh_per_kg", "avionics_uninstalled_mass",
+    "battery_energy_total", "battery_mass_installed", "pack_wh_per_kg", "avionics_uninstalled_mass", "v_cruise",
 )
 
 
@@ -51,7 +52,8 @@ class DatasetBuild:
 def _row(r: NormRecord) -> dict[str, Any]:
     row: dict[str, Any] = {
         "id": r.id, "manufacturer": r.manufacturer, "type_name": r.type_name, "variant": r.variant,
-        "tcds_model": r.tcds_model, "year": r.year, "cert": r.cert.value, "cert_used": r.cert_used,
+        "tcds_model": r.tcds_model, "cluster": r.cluster,
+        "year": r.year, "cert": r.cert.value, "cert_used": r.cert_used,
         "seats": r.seats, "status": r.status, "powertrain": r.powertrain.value, "n_engines": r.n_engines,
         "material_primary": r.material_primary.value,
         "material_by_component": json.dumps({k: v.value for k, v in sorted(r.material_by_component.items())}),
@@ -62,6 +64,7 @@ def _row(r: NormRecord) -> dict[str, Any]:
         "outlier": r.outlier, "outlier_z": r.outlier_z, "outlier_confirmed": r.outlier_confirmed,
         "duplicate_of": r.duplicate_of, "calibration_eligible": r.calibration_eligible,
         "ineligible_reasons": "; ".join(r.ineligible_reasons), "warnings": json.dumps(r.warnings),
+        "imputed_fields": json.dumps(r.imputed),
     }
     prov = {}
     for k in VALUE_FIELDS:
@@ -69,7 +72,7 @@ def _row(r: NormRecord) -> dict[str, Any]:
         row[k] = None if nv is None else float(nv.value)
         if nv is not None:
             prov[k] = {"sources": list(nv.sources), "confidence": nv.confidence, "derived_from": list(nv.derived_from),
-                       "method": nv.method}
+                       "method": nv.method, "sd": nv.sd, "sd_scale": nv.sd_scale}
     row["provenance"] = json.dumps(prov, sort_keys=True)
     return row
 
@@ -90,15 +93,27 @@ def canonical_hash(rows: list[dict[str, Any]], comps: list[dict[str, Any]]) -> s
     return hashlib.sha256(blob.encode()).hexdigest()
 
 
+def _imputation_summary(normed: list[NormRecord]) -> dict[str, Any]:
+    by_method: dict[str, int] = {}
+    for r in normed:
+        for f in r.imputed:
+            m = "NI.design_prior" if f == "fuel_tanks" else r.fields[f].method
+            by_method[m] = by_method.get(m, 0) + 1
+    elig = [r for r in normed if r.calibration_eligible]
+    return {"n_records_imputed": sum(bool(r.imputed) for r in normed), "by_method": dict(sorted(by_method.items())),
+            "eligible_imputed": {r.id: list(r.imputed) for r in elig if r.imputed}}
+
+
 def build_from_records(records: list[AircraftRecord], sources: dict[str, Source],
-                       confirmed_outliers: frozenset[str] = frozenset()) -> DatasetBuild:
+                       confirmed_outliers: frozenset[str] = frozenset(), impute: bool = False,
+                       design_priors: bool = False, extra_manifest: dict[str, Any] | None = None) -> DatasetBuild:
     errs = source_errors(sources)
     for rec in records:
         errs += [(f"{rec.id}.{p}", m) for p, m in provenance_errors(rec, sources)]
     if errs:
         from ..errors import RecordValidationError
         raise RecordValidationError("dataset", errs)
-    ctx = NormContext(sources, confirmed_outliers)
+    ctx = NormContext(sources, confirmed_outliers, impute=impute, design_priors=design_priors and impute)
     normed, logs = run_pipeline(records, ctx)
     rows = [_row(r) for r in normed]
     comps = [c for r in normed for c in _component_rows(r, ctx)]
@@ -113,6 +128,10 @@ def build_from_records(records: list[AircraftRecord], sources: dict[str, Source]
         "n_electric": int(sum(r["powertrain"] == "battery_electric" for r in rows)),
         "n10_flagged": sorted(r["id"] for r in rows if r["outlier"]),
         "ineligible": {r["id"]: r["ineligible_reasons"] for r in rows if not r["calibration_eligible"]},
+        "imputation": {"enabled": impute, "design_priors": bool(design_priors and impute),
+                       **(_imputation_summary(normed) if impute else {})},
+        "eligible_ids": sorted(r["id"] for r in rows if r["calibration_eligible"]),
+        **(extra_manifest or {}),
     }
     return DatasetBuild(df, cdf, h, manifest, logs)
 
@@ -124,10 +143,30 @@ def _write_parquet(df: pd.DataFrame, path: Path) -> None:
 
 
 def build_dataset(records_dir: str | Path, sources_csv: str | Path, out_dir: str | Path,
-                  confirmed_outliers: frozenset[str] = frozenset()) -> DatasetBuild:
+                  confirmed_outliers: frozenset[str] = frozenset(), fleet_csv: str | Path | None = None,
+                  fleet_accessed: str | None = None, impute: bool | None = None,
+                  design_priors: bool = True) -> DatasetBuild:
+    """Records from ``records_dir`` plus (optionally) the clustered fleet CSV. NI imputation defaults to on when a
+    fleet CSV is given (it is what the clusters are for) and off otherwise."""
     sources = load_sources(sources_csv)
     records = load_records(records_dir, sources)
-    b = build_from_records(records, sources, confirmed_outliers)
+    extra: dict[str, Any] = {}
+    if fleet_csv is not None:
+        from .fleet_csv import load_cluster_summary, load_fleet_csv
+        frecs, fsrc, rep = load_fleet_csv(fleet_csv, fleet_accessed)
+        clash = sorted(set(sources) & set(fsrc)) + sorted({r.id for r in records} & {r.id for r in frecs})
+        if clash:
+            from ..errors import RecordValidationError
+            raise RecordValidationError(str(fleet_csv), [("id", f"ids already in records/sources: {clash}")])
+        records, sources = records + frecs, {**sources, **fsrc}
+        summary = load_cluster_summary(Path(fleet_csv).parent / "cluster_summary.csv")
+        for cid, c in rep.clusters.items():
+            if cid in summary:
+                c["deficiencies"] = summary[cid].get("deficiencies", "")
+        extra["fleet_csv"] = {"path": str(fleet_csv), **rep.to_dict()}
+    if impute is None:
+        impute = fleet_csv is not None
+    b = build_from_records(records, sources, confirmed_outliers, impute, design_priors, extra)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     _write_parquet(b.rows, out / "normalized.parquet")
@@ -154,8 +193,9 @@ def main() -> None:
     ap.add_argument("--records", default="data/records")
     ap.add_argument("--sources", default="data/sources.csv")
     ap.add_argument("--out", default="build")
+    ap.add_argument("--fleet-csv", default=None)
     a = ap.parse_args()
-    b = build_dataset(a.records, a.sources, a.out)
+    b = build_dataset(a.records, a.sources, a.out, fleet_csv=a.fleet_csv)
     print(json.dumps({k: v for k, v in b.manifest.items() if k != "ineligible"}, indent=2))
 
 

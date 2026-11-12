@@ -51,7 +51,7 @@ REGULATORY_CAPS = {
 CAP_TOL = 1.5
 
 # Relative (1-sigma) measurement uncertainty on empty weight (N9)
-TIER_SIGMA = {Tier.A: 0.02, Tier.B: 0.04, Tier.C: None}
+TIER_SIGMA = {Tier.A: 0.02, Tier.B: 0.04, Tier.C_PLUS: None, Tier.C: None}   # C+: doc 12 SC-27
 DEF_SIGMA = {
     EmptyWeightDef.BASIC_GAMA: 0.0,
     EmptyWeightDef.LICENSED: 0.01,
@@ -85,6 +85,8 @@ class NV:
     note: str = ""
     derived_from: tuple[str, ...] = ()
     method: str = ""
+    sd: float = 0.0               # NI imputation uncertainty (1 sd), propagated into sigma by calibration/fleet.py
+    sd_scale: str = "log"         # "log" (relative) or "abs" (same unit as value, e.g. angles near 0)
 
 
 @dataclass(frozen=True)
@@ -134,6 +136,8 @@ class NormRecord:
     components: list[tuple[str, NV, Material | None]]
     cert_categories: dict[str, NV]
     cert_used: str = ""
+    cluster: str = ""
+    imputed: list[str] = field(default_factory=list)      # fields filled by NI (cluster data or design prior)
     sigma_parts: dict[str, float] = field(default_factory=dict)
     sigma_rel: float | None = None
     mtow_censored: bool = False
@@ -162,6 +166,8 @@ class NormRecord:
 class NormContext:
     sources: dict[str, Source]
     confirmed_outliers: frozenset[str] = frozenset()
+    impute: bool = False             # NI cluster imputation (doc 05 NI, doc 12 SC-28)
+    design_priors: bool = False      # NI design priors for inputs no fleet record reports (doc 12 SC-29)
 
     def tier(self, source_id: str) -> Tier:
         s = self.sources.get(source_id)
@@ -178,7 +184,7 @@ _SCALAR_FIELDS = (
     "htail_span", "htail_taper", "htail_tc", "htail_sweep_qc", "vtail_span", "vtail_taper", "vtail_tc",
     "vtail_sweep_qc", "fuselage_structural_length",
     "tail_arm", "main_gear_length", "nose_gear_length", "fuselage_wetted_area", "n_limit_pos", "n_limit_neg",
-    "v_ne", "v_c", "v_no", "v_d", "v_h", "v_s0", "v_s1", "rated_power_total", "engine_dry_mass",
+    "v_ne", "v_c", "v_no", "v_d", "v_h", "v_s0", "v_s1", "v_cruise", "rated_power_total", "engine_dry_mass",
 )
 
 
@@ -191,7 +197,7 @@ def from_record(rec: AircraftRecord) -> NormRecord:
     flds = {n: _nv(getattr(rec, n)) for n in _SCALAR_FIELDS if getattr(rec, n) is not None}
     return NormRecord(
         id=rec.id, type_name=rec.type_name, variant=rec.variant, manufacturer=rec.manufacturer,
-        tcds_model=rec.tcds_model, year=rec.year_first_flight, cert=rec.cert, seats=rec.seats,
+        tcds_model=rec.tcds_model, cluster=rec.cluster, year=rec.year_first_flight, cert=rec.cert, seats=rec.seats,
         status=rec.production_status, powertrain=rec.powertrain, n_engines=rec.n_motors_or_engines,
         material_primary=rec.material_primary, material_by_component=dict(rec.material_by_component),
         gear=rec.gear, high_wing=rec.high_wing, pressurized=rec.pressurized, t_tail=rec.t_tail,
@@ -263,7 +269,7 @@ def n1_units(rec: NormRecord, ctx: NormContext) -> tuple[NormRecord, list[LogEnt
 
 
 # --- N2 variant resolution and de-duplication ---------------------------------
-_TIER_RANK = {Tier.A: 0, Tier.B: 1, Tier.C: 2}
+_TIER_RANK = {Tier.A: 0, Tier.B: 1, Tier.C_PLUS: 2, Tier.C: 3}
 
 
 def n2_select(rec: NormRecord, ctx: NormContext) -> tuple[NormRecord, list[LogEntry]]:
@@ -575,7 +581,8 @@ def n9_variance(rec: NormRecord, ctx: NormContext) -> tuple[NormRecord, list[Log
     base = TIER_SIGMA[tier]
     if base is None:
         r.sigma_rel = None
-        r.warn("tier C empty weight: excluded from calibration, analog use only")
+        r.warn(f"tier {tier.value} empty weight: excluded from calibration; "
+               + ("cluster imputation and analog use only" if tier == Tier.C_PLUS else "analog use only"))
         return r, logs
     r.sigma_parts["tier"] = base
     r.sigma_parts.setdefault("def", DEF_SIGMA[r.ew_def])
@@ -703,7 +710,9 @@ def _apply(records: list[NormRecord], fn: Routine, ctx: NormContext, logs: list[
 
 def run_pipeline(records: Iterable[NormRecord | AircraftRecord], ctx: NormContext
                  ) -> tuple[list[NormRecord], list[LogEntry]]:
-    """N1 → N12 in order. Accepts raw AircraftRecords or already-normalized records (idempotent)."""
+    """N1 → N5, NI (cluster imputation, if ctx.impute), N6 → N12.
+
+    Accepts raw AircraftRecords or already-normalized records (idempotent)."""
     rs = [from_record(r) if isinstance(r, AircraftRecord) else r for r in records]
     rs.sort(key=lambda r: r.id)
     logs: list[LogEntry] = []
@@ -711,7 +720,13 @@ def run_pipeline(records: Iterable[NormRecord | AircraftRecord], ctx: NormContex
     rs = _apply(rs, n2_select, ctx, logs)
     rs, lg = n2_dedup(rs)
     logs += lg
-    for fn in (n3_empty_weight, n4_fuel_oil, n5_censoring, n6_loads, n7_speeds, n8_geometry, n9_variance):
+    for fn in (n3_empty_weight, n4_fuel_oil, n5_censoring):
+        rs = _apply(rs, fn, ctx, logs)
+    if ctx.impute:
+        from .impute import ni_impute
+        rs, lg = ni_impute(rs, ctx)
+        logs += lg
+    for fn in (n6_loads, n7_speeds, n8_geometry, n9_variance):
         rs = _apply(rs, fn, ctx, logs)
     rs, lg = n10_outliers(rs, ctx)
     logs += lg

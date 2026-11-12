@@ -81,6 +81,19 @@ shape, and the bottom-up priors. It then predicts masses with uncertainty, and c
    `HS1Config`, so you can edit it and re-run with `hs1-weights predict my_hs1_config.json`. Defaults:
    `--runs ../WPPestimation/runs/runs.json`, `--wpp ../WPPestimation`.
 
+   `--coupling full` replaces that frozen-airframe closure with **full coupling**. Every iteration re-runs
+   eacsize's complete sizing at the new MTOM with the run's own settings: constraint diagram, wing area and span,
+   power, geometry, mission energy. HS1 then predicts the weights of that re-sized aircraft. After convergence,
+   eacsize runs once more at the closed MTOM with HS1's empty weight as its OEW override, so the output also holds
+   eacsize's range, stall, take-off, climb and checks for the closed design (`eacsize_closed`). With `--mc`, the
+   re-sized aircraft is tabulated on a 48-point mass grid and each sample's closure is solved by interpolation (a
+   few seconds; samples with no closure are reported). Both modes size the pack for the run's mission target
+   fields, recorded in the output as `mission_target`.
+
+   ```bash
+   .venv/bin/python -m hs1_weights from-eacsize --run R0003 --coupling full --mc --out r3_full.json
+   ```
+
    ```python
    import json
    from hs1_weights.adapters import eacsize as ea
@@ -102,11 +115,42 @@ pack is modelled with η_c2p = 1. Example (R0003, illustrative overlay, prior k)
 570 kg at 750 kg. Re-closed with eacsize's mission energy, MTOW is 841 kg (P10–P90 744–998 kg) and the pack is
 77.6 kWh.
 
+## Fleet calibration from the clustered fleet table
+
+`data/fleet/fleet_clusters.csv` is the owner-compiled fleet: 47 aircraft in 7 clusters, with
+`cluster_summary.csv` listing each cluster's deficiencies. It is converted in memory at build time
+(`data/fleet_csv.py`), so the CSV remains the copy you edit:
+
+```bash
+.venv/bin/python -m hs1_weights build-dataset --fleet-csv data/fleet/fleet_clusters.csv --out build
+.venv/bin/python -m hs1_weights calibrate --dataset build --engine auto
+```
+
+- **Tiers.** Only records whose MTOW and empty weight are Tier A/B calibrate. C+ (Wikipedia citing Jane's or the
+  manufacturer) is used for imputation and analogs only. Tier Z values are dropped. Today **6 records are
+  eligible**: C172 S, C182 T, DA40 NG, Velis Electro, P2008 JC and RV-12 iS. Taurus Electro, RV-7, P2010 and
+  RV-10 become eligible once their `variant_hint` is filled.
+- **Cluster imputation (NI).** A missing input is filled by log-log regression within the aircraft's cluster. With
+  only 2–3 cluster donors it uses the cluster intercept with the fleet slope, then a pooled fleet regression, then
+  the median. Inputs that no aircraft reports (tail areas and arm, t/c, taper, fuselage width/height, gear struts,
+  engine dry mass, avionics, pack and motor mass) come from flagged **design priors** (`--no-design-priors` turns
+  them off). MTOW and empty weight are never imputed.
+- **Uncertainty.** Every imputed value carries a 1-sd uncertainty. Calibration pushes it through L1 and widens that
+  record's likelihood σ, so heavily imputed records weigh less. The current eligible records sit at σ_input
+  0.075–0.13, and engine dry mass is the largest term. Adding an `engine_dry_mass_kg` column (from the engine TCDS
+  named in `engine_or_motor`) and tail/fuselage columns shrinks it the most.
+- Columns the importer already reads when you add them: `htail_area_m2`, `vtail_area_m2`, `tail_arm_m`,
+  `fuselage_width_m`, `fuselage_height_m`, `main_gear_strut_m`, `nose_gear_strut_m`, `avionics_mass_kg`,
+  `battery_mass_kg`, `w_wing_kg` … `w_gear_kg` (component breakdowns), and `vno_kt`.
+- Rules and conflicts: doc 05 "NI" and doc 12 SC-27 to SC-31. The manifest (`build/dataset_manifest.json`) lists
+  every imputed field per eligible record, and the calibration artefact stores each record's σ_input.
+
 ## Workflow
 
 ```
 data/sources.csv + data/records/*.json          (sourced, reviewed; data/review.py for the extraction queue)
-   └─ hs1-weights build-dataset                 N1–N12 → build/normalized.parquet + log + content hash
+ + data/fleet/fleet_clusters.csv (optional)     clustered owner table, tiers per field
+   └─ hs1-weights build-dataset [--fleet-csv]   N1–N5, NI imputation, N6–N12 → build/normalized.parquet + log + hash
         └─ hs1-weights calibrate --engine auto  NUTS (numpyro) or MAP/Laplace → artefacts/calibration_<date>_<hash>.nc
              └─ hs1-weights validate            LOO / LOCO / raw-method benchmark vs doc 08 §5 thresholds
 HS1Config ─ hs1-weights predict --calibration <artefact> --fleet build

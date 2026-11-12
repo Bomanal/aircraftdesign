@@ -94,6 +94,9 @@ def fleet_context(row: Mapping[str, Any], W_dg: float) -> tuple[ModelContext, li
         fus_L_struct = _g(row, "fuselage_length")
         notes.append("Raymer L = fuselage length (structural length not published)")
     fuel = _g(row, "fuel_capacity_usable")
+    if fuel is None and not electric and _g(row, "fuel_capacity_total") is not None:
+        fuel = _g(row, "fuel_capacity_total")
+        notes.append("W_fw from total fuel capacity (usable not published)")
     dens = FUEL_DENSITY.get(str(row.get("fuel_type") or ""))
     W_fw = fuel * dens if (fuel is not None and dens is not None) else None
     if not electric:
@@ -168,6 +171,7 @@ class FleetMatrix:
     log_obs: npt.NDArray[np.float64]      # [n]
     sigma_meas: npt.NDArray[np.float64]   # [n]
     aircraft_ok: npt.NDArray[np.bool_]    # [n] evaluable for the aircraft-level likelihood
+    sigma_input: npt.NDArray[np.float64]  # [n] NI imputation sd propagated through L1 (already in sigma_meas)
     latent: npt.NDArray[np.bool_]         # [n] censored, latent W_dg
     mtow: npt.NDArray[np.float64]
     material: list[dict[str, str]]        # per record: comp -> material
@@ -189,7 +193,7 @@ class FleetMatrix:
         remap = {int(o): i for i, o in enumerate(idx)}
         return FleetMatrix(
             [self.ids[i] for i in idx], self.comps, self.F[idx], self.present[idx], self.U[idx], self.log_obs[idx],
-            self.sigma_meas[idx], self.aircraft_ok[idx], self.latent[idx], self.mtow[idx],
+            self.sigma_meas[idx], self.aircraft_ok[idx], self.sigma_input[idx], self.latent[idx], self.mtow[idx],
             [self.material[i] for i in idx], [self.cert_level[i] for i in idx], [self.era[i] for i in idx],
             [self.manufacturer[i] for i in idx], [self.powertrain[i] for i in idx],
             [Breakdown(remap[b.rec], b.comps, b.log_obs, b.sigma_meas, b.k_group, b.name)
@@ -198,6 +202,64 @@ class FleetMatrix:
 
 
 TIER_SIGMA = {"A": 0.02, "B": 0.04}
+
+
+# --- NI imputation uncertainty -> record sigma (doc 12 SC-28) ---------------------------------------------------
+def _rederive(row: dict[str, Any], prov: Mapping[str, Any]) -> None:
+    """Recompute quantities derived from NI-imputed roots after a perturbation (N7/N8 derivations)."""
+    def method(f: str) -> str:
+        return str(prov.get(f, {}).get("method", ""))
+
+    def deps(f: str) -> list[str]:
+        return list(prov.get(f, {}).get("derived_from", []))
+    if method("fuselage_max_width") == "NI.fus_width_eq_height":
+        row["fuselage_max_width"] = row["fuselage_max_height"]
+    if method("fuselage_wetted_area") == "N8.swet_torenbeek":
+        from ..data.derive import fuselage_wetted_area_torenbeek
+        row["fuselage_wetted_area"] = fuselage_wetted_area_torenbeek(
+            row["fuselage_length"], row["fuselage_max_width"], row["fuselage_max_height"])
+    if method("aspect_ratio") == "N8.aspect_ratio":
+        row["aspect_ratio"] = row["span"] ** 2 / row["wing_area"]
+    if "v_no" in deps("v_c"):
+        row["v_c"] = row["v_no"]
+    if "v_ne" in deps("v_d"):
+        row["v_d"] = row["v_ne"] / 0.9
+    for v, q in (("v_c", "q_c"), ("v_d", "q_d")):
+        if v in deps(q) and row.get(v) is not None:
+            row[q] = 0.5 * 1.225 * row[v] ** 2
+
+
+def _total_mass(row: Mapping[str, Any], W_dg: float, comps: tuple[str, ...], methods: Mapping[str, str]) -> float:
+    ctx, _ = fleet_context(row, W_dg)
+    res = evaluate_tree(ctx, methods, only=comps)
+    return float(sum(float(np.asarray(res[c].mass_kg)) for c in comps)) + fleet_uncalibrated(row)[0]
+
+
+def imputation_sigma(row: Mapping[str, Any], W_dg: float, methods: Mapping[str, str] | None = None
+                     ) -> tuple[float, dict[str, float]]:
+    """σ_input on log W_E: each NI-imputed root input moved by ±1 sd (derived quantities re-derived), the log
+    change of the uncalibrated L1 total taken by central difference, contributions added in quadrature
+    (first order, roots independent; k = 1)."""
+    prov = json.loads(row.get("provenance") or "{}")
+    roots = {f: p for f, p in prov.items() if str(p.get("method", "")).startswith("NI.") and p.get("sd", 0.0) > 0
+             and row.get(f) is not None}
+    if not roots:
+        return 0.0, {}
+    methods = dict(methods or {})
+    comps = fleet_components(row)
+    contrib: dict[str, float] = {}
+    for f, p in roots.items():
+        lo, hi = dict(row), dict(row)
+        sd = float(p["sd"])
+        if p.get("sd_scale", "log") == "log":
+            lo[f], hi[f] = row[f] * math.exp(-sd), row[f] * math.exp(sd)
+        else:
+            lo[f], hi[f] = row[f] - sd, row[f] + sd
+        _rederive(lo, prov)
+        _rederive(hi, prov)
+        contrib[f] = abs(math.log(_total_mass(hi, W_dg, comps, methods))
+                         - math.log(_total_mass(lo, W_dg, comps, methods))) / 2.0
+    return math.sqrt(sum(c * c for c in contrib.values())), contrib
 
 
 def build_fleet_matrix(rows: pd.DataFrame, components: pd.DataFrame | None = None,
@@ -253,6 +315,13 @@ def build_fleet_matrix(rows: pd.DataFrame, components: pd.DataFrame | None = Non
         if not aircraft_ok:
             excluded[rid] = f"aircraft-level likelihood: {reason}"
         notes[rid] = rnotes + unotes
+        sig_in = 0.0
+        if aircraft_ok:
+            sig_in, contrib = imputation_sigma(row, wdgs[0], methods)
+            if sig_in > 0:
+                top = sorted(contrib.items(), key=lambda kv: -kv[1])[:3]
+                notes[rid].append(f"NI imputation sigma {sig_in:.3f} on log W_E (largest: "
+                                  + ", ".join(f"{k} {v:.3f}" for k, v in top) + ")")
         mats = {c: component_material(row, c) for c in comps}
         bds = []
         for _, b in bd_rows[bd_rows["id"] == rid].iterrows():
@@ -266,7 +335,8 @@ def build_fleet_matrix(rows: pd.DataFrame, components: pd.DataFrame | None = Non
             bds.append((tuple(cidx[t] for t in tgt), math.log(float(b["mass_kg"])), sig, K_GROUP[tgt[0]],
                         str(b["component"])))
         recs.append(dict(id=rid, F=F, present=present, U=U, log_obs=math.log(float(row["empty_weight"])),
-                         sigma=float(row["sigma_rel"]), ok=aircraft_ok, latent=latent, mtow=mtow, mats=mats,
+                         sigma=math.hypot(float(row["sigma_rel"]), sig_in), sig_in=sig_in, ok=aircraft_ok,
+                         latent=latent, mtow=mtow, mats=mats,
                          cert=CERT_LEVEL[str(row.get("cert_used") or row["cert"])], era=era_of(row.get("year")),
                          manu=str(row.get("manufacturer") or ""),
                          pt=POWERTRAIN_GROUP[str(row["powertrain"])], bds=bds))
@@ -278,7 +348,8 @@ def build_fleet_matrix(rows: pd.DataFrame, components: pd.DataFrame | None = Non
         present=np.array([r["present"] for r in recs], dtype=bool).reshape(n, len(comps_all)),
         U=np.array([r["U"] for r in recs], dtype=float), log_obs=np.array([r["log_obs"] for r in recs], dtype=float),
         sigma_meas=np.array([r["sigma"] for r in recs], dtype=float),
-        aircraft_ok=np.array([r["ok"] for r in recs], dtype=bool), latent=np.array([r["latent"] for r in recs],
+        aircraft_ok=np.array([r["ok"] for r in recs], dtype=bool),
+        sigma_input=np.array([r["sig_in"] for r in recs], dtype=float), latent=np.array([r["latent"] for r in recs],
                                                                                    dtype=bool),
         mtow=np.array([r["mtow"] for r in recs], dtype=float), material=[r["mats"] for r in recs],
         cert_level=[r["cert"] for r in recs], era=[r["era"] for r in recs], manufacturer=[r["manu"] for r in recs],

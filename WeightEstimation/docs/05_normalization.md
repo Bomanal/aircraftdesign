@@ -55,6 +55,30 @@ Store total and usable fuel. If only one is given, record the other as missing (
 - If censored: `mtow_censored=True` and `design_weight_kg=None`. Calibration then uses W_dg from TCDS structural data if available. Otherwise, the record is used **only** in the W_E likelihood with W_dg treated as an uncertain parameter, with a lower bound of MTOW and a weak prior up to +20% (doc 07 §3.3).
 - Category aircraft (ASTM F2245, EU UL, CS-VLA) whose MTOW is **not** at a cap raise a warning: check variant and market.
 
+## NI — Cluster imputation of missing L1 inputs (owner addition 2026-11-12; doc 12 SC-28/SC-29)
+
+Module: `data/impute.py`. This is a list-level routine that runs **after N5 and before N6**, only when
+`NormContext.impute` is set (default on with `--fleet-csv`). Clusters come from the record's `cluster` field
+(owner table `data/fleet/fleet_clusters.csv`, definitions in `cluster_summary.csv`).
+
+For a missing input the first applicable method wins:
+
+| Method | Condition | Estimate | 1-sd (log) |
+|---|---|---|---|
+| `cluster_regression` | ≥ 4 cluster donors report (y, x) | log y = a + b·log x | prediction sd, s·√(1 + 1/n + (x − x̄)²/Sxx), floor 3% |
+| `cluster_offset` | 2–3 cluster donors | fleet slope b, cluster intercept | s_fleet·√(1 + 1/n_c) |
+| `fleet_regression` | ≥ 4 fleet donors (same powertrain group for power, fuel, battery, engine) | pooled log-log | prediction sd |
+| `cluster_median` / `fleet_median` | no usable predictor | median | max(sd, 10% / 15%)·√(1 + 1/n) |
+| `design_prior` | no fleet data at all, and `design_priors` on | design relation (SPECS) | as listed; flagged *verify* |
+
+Predictors, tried in order: S ← MTOW; b ← S, MTOW; L_fus ← MTOW; P ← MTOW; V_NE ← V_cruise, MTOW; V_NO ← V_NE,
+V_cruise; fuel ← P, MTOW; E_batt ← MTOW; pack mass ← E; engine/motor mass ← P; tail areas ← S; tail arm, fuselage
+W/H ← L_fus; gear lengths, W_uav ← MTOW. If the predictor is itself imputed, its sd is propagated (b·sd_x).
+
+Rules: only observed values are donors. **MTOW and empty weight are never imputed.** Each value records
+`derived_from` (predictor and cluster), `method = NI.<method>`, confidence ≤ 0.5 and `sd`. The NI log entry names
+the donors. Calibration adds the propagated imputation σ to the record's likelihood σ (`calibration/fleet.py`).
+
 ## N6 — Load-factor and certification inference
 
 If n limits are not published, infer them from the certification tag:

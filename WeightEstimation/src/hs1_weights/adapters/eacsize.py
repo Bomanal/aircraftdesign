@@ -6,6 +6,11 @@ sweep, lift-curve slope and the bottom-up placeholder priors. Those come from an
 HS1Config). Every value taken from eacsize is listed in ``HS1Config.provenance`` and therefore in the report's
 ``assumptions``; an overlay value for an eacsize-owned field wins and is logged as an override.
 
+The overlay is normally built from an **Aircraft structure config** selection (``structure_config.build_overlay``,
+docs/14). Its stations and lengths are relative (``{"x_frac", "z_m"}``, ``{"frac", "of"}``) and are resolved here
+against the fuselage length and span of the configuration being built, so they follow eacsize re-sizing in full
+coupling. Hand-written overlays with absolute values still work.
+
 Mapping (eacsize run -> HS1Config):
 
 =============================================  ==========================================================
@@ -41,6 +46,7 @@ from typing import Any
 import numpy as np
 
 from ..config import HS1Config, _strip_comments
+from ..structure_config import resolve_relative
 
 # hs1_weights component -> eacsize mass_kg keys it corresponds to (for the side-by-side comparison)
 COMPARE = {
@@ -113,6 +119,9 @@ def config_from_eacsize(run: dict[str, Any], overlay: dict[str, Any]) -> HS1Conf
     base = mapped_fields(run)
     overridden: list[str] = []
     d = _deep_merge(base, overlay, "", overridden)
+    # structure config: stations / lengths given relative to this aircraft (follow eacsize re-sizing)
+    L_fus, span = float(d["fuselage"]["length_m"]), float(d["wing"]["span_m"])
+    d, n_rel = resolve_relative(d, L_fus, span)
     A, P_kw = run["assumptions"], run["results"]["summary"]["installed_power_kw"]
     eta = A["eta_motor"] * A["eta_inverter"] * A["eta_wiring"]
     shares = [m.get("power_share") for m in d["powertrain"].get("motors", [])]
@@ -133,6 +142,9 @@ def config_from_eacsize(run: dict[str, Any], overlay: dict[str, Any]) -> HS1Conf
             "geometry (S, b, taper, t/c, MAC, fuselage L/W/H and wetted area, S_ht, S_vt, tail arm), C_L,max, "
             "V_H, gear lengths, MTOM, pack energy and payload taken from eacsize"]
     prov += [f"overlay overrides eacsize value: {p}" for p in overridden]
+    if n_rel:
+        prov.append(f"{n_rel} relative layout values resolved against fuselage length {L_fus:.3f} m and span "
+                    f"{span:.3f} m")
     if status != "ok":
         prov.append(f"WARNING: eacsize run status is {status!r}; check its messages before using the result")
     d["provenance"] = prov + list(d.get("provenance", []))
@@ -194,6 +206,100 @@ def energy_fn_from_eacsize(run: dict[str, Any], wpp_dir: str | Path) -> Callable
             out[m] = np.interp(uniq[m], grid[fin], eg[fin])
         return out[inv]
     return energy
+
+
+class EacsizeSizer:
+    """Full coupling: re-run eacsize's complete sizing for a stored run at any MTOM.
+
+    The run's own settings are kept (geometry mode, power sizing, mission, requirements, assumptions); only the
+    sizing mode is forced to ``fixed_mtom`` at the requested mass, because hs1_weights does the mass closure.
+    In ``constraint`` geometry mode eacsize re-sizes wing area and span from the W/S limits and power from the
+    P/W constraints at that mass; fuselage and tails are regenerated from its geometry model.
+    """
+
+    def __init__(self, run: dict[str, Any], wpp_dir: str | Path) -> None:
+        self.model, self.sizing = _import_eacsize(wpp_dir)
+        self.run = run
+        self.base = {k: copy.deepcopy(run[k]) for k in ("inputs", "mission", "requirements", "assumptions")}
+        self.base["inputs"].update(mode="fixed_mtom", oew_override_kg=0.0)
+        m = self.model
+        self.inp = m.coerce(m.DesignInputs, self.base["inputs"])
+        self.msn = m.coerce(m.Mission, self.base["mission"])
+        self.req = m.coerce(m.Requirements, self.base["requirements"])
+        self.A = m.coerce(m.Assumptions, self.base["assumptions"])
+        self.cal = self.sizing.calibration(self.A)
+        self._cache: dict[float, dict[str, Any]] = {}
+
+    def sized(self, w: float, oew_excl_battery_kg: float = 0.0) -> dict[str, Any]:
+        """Run-like record (inputs, mission, ..., results) of eacsize sized at MTOM ``w``."""
+        key = (round(float(w), 3), round(float(oew_excl_battery_kg), 3))
+        if oew_excl_battery_kg == 0.0 and key[0] in self._cache:
+            return self._cache[key[0]]
+        d = copy.deepcopy(self.base)
+        d["inputs"].update(mtom_kg=float(w), oew_override_kg=float(oew_excl_battery_kg))
+        rec = dict(self.sizing.run_from_dict(d), id=self.run.get("id"), label=self.run.get("label"),
+                   timestamp=self.run.get("timestamp"))
+        if oew_excl_battery_kg == 0.0:
+            self._cache[key[0]] = rec
+        return rec
+
+    def energy_wh(self, w: float) -> float:
+        """Nominal pack energy for the run's mission at MTOM ``w`` on the airframe eacsize sizes at ``w``."""
+        if not math.isfinite(w) or w <= 0:
+            return math.inf
+        af = self.sizing.build_airframe(float(w), self.inp, self.msn, self.req, self.A, self.cal)
+        kg, _, _ = self.sizing.battery_required(af, self.inp, self.msn, self.A)
+        return float(kg * self.A.pack_wh_kg)
+
+    @property
+    def pack_wh_kg(self) -> float:
+        return float(self.A.pack_wh_kg)
+
+
+def full_coupling(run: dict[str, Any], overlay: dict[str, Any], wpp_dir: str | Path,
+                  ) -> tuple[Callable[[float], tuple[HS1Config, float]], EacsizeSizer]:
+    """``config_at(W) -> (HS1Config at W with pack energy E, E_Wh)`` for ``closure.close_point_coupled``."""
+    sizer = EacsizeSizer(run, wpp_dir)
+    from ..closure import _with
+    mode = run["inputs"]["geometry_mode"]
+
+    def config_at(w: float) -> tuple[HS1Config, float]:
+        e = sizer.energy_wh(w)
+        rec = sizer.sized(w)
+        cfg = config_from_eacsize(rec, overlay)
+        s = rec["results"]["summary"]
+        prov = [p for p in cfg.provenance if not p.startswith("WARNING: eacsize run status")]
+        prov.append(f"full coupling: eacsize re-sized at MTOM {w:.1f} kg (geometry mode {mode!r}): S "
+                    f"{s['wing_area_m2']:.2f} m², b {s['span_m']:.2f} m, P {s['installed_power_kw']:.1f} kW; "
+                    f"pack energy from the run's mission target at this mass")
+        cfg = cfg.model_copy(update={"provenance": prov})
+        return (_with(cfg, w, e) if math.isfinite(e) else cfg), e
+    return config_at, sizer
+
+
+SUMMARY_KEYS = ("mtom_kg", "wing_area_m2", "span_m", "wing_loading_kgm2", "installed_power_kw", "battery_kwh",
+                "range_cruise_km", "range_cruise_eol_km", "endurance_vmp_h", "vs0_kcas", "takeoff_15m_m",
+                "roc_sl_cont_ms")
+
+
+def summary_of(rec: dict[str, Any]) -> dict[str, Any]:
+    r = rec["results"]
+    return {"status": r["status"], **{k: r["summary"].get(k) for k in SUMMARY_KEYS},
+            "fus_len_m": r["design"]["geometry"].get("fus_len"), "messages": r.get("messages", []),
+            "checks": [{k: c.get(k) for k in ("name", "value", "limit", "unit", "severity", "note")}
+                       for c in r.get("checks", [])]}
+
+
+def mission_target(run: dict[str, Any]) -> dict[str, Any]:
+    """The mission the closure sizes the pack for (eacsize target fields, used even for fixed-MTOM runs)."""
+    i = run["inputs"]
+    rng = i["target"] == "range"
+    note = ("eacsize ran this case at fixed MTOM (pack = remaining mass, target fields greyed out in its UI); the "
+            "closure sizes the pack to these target fields instead") if i["mode"] == "fixed_mtom" else ""
+    return {"target": i["target"], "value": i["target_range_km"] if rng else i["target_endurance_h"],
+            "unit": "km" if rng else "h", "at_end_of_life": bool(i["size_at_eol"]),
+            "reserve_min": run["mission"]["reserve_min"], "v_cruise_kmh": run["mission"]["v_cruise_kmh"],
+            "eacsize_mode": i["mode"], "note": note}
 
 
 def comparison(run: dict[str, Any], report: Any) -> list[dict[str, Any]]:

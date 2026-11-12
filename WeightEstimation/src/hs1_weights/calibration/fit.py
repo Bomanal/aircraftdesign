@@ -103,6 +103,12 @@ def calibrate(rows: pd.DataFrame, components: pd.DataFrame | None, dataset_hash:
         "prior_spec": {k: v.to_dict() for k, v in prior_table(S.collapse_struct).items()},
         "n_records": fm.n, "n_aircraft_level": int(fm.aircraft_ok.sum()), "n_breakdowns": len(fm.breakdowns),
         "excluded": fm.excluded, "manufacturers": S.manufacturers, "effects": S.effects,
+        "imputation": {
+            "sigma_input": {i: round(float(s), 4) for i, s in zip(fm.ids, fm.sigma_input, strict=True) if s > 0},
+            "imputed_fields": ({i: json.loads(v) for i, v in zip(fm.raw["id"], fm.raw["imputed_fields"], strict=True)
+                                if v and json.loads(v)} if "imputed_fields" in fm.raw else {}),
+            "note": "NI-imputed L1 inputs (cluster data or design priors) widen each record's likelihood sigma by "
+                    "sigma_input (doc 12 SC-28/SC-29)"},
         "summary": None,
     }
     post = Posterior(draws, prior_table(S.collapse_struct), S.collapse_struct, eng, S.manufacturers)

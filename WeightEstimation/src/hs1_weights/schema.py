@@ -9,6 +9,8 @@ from enum import Enum
 class Tier(str, Enum):
     A = "A"   # TCDS, POH W&B, Roskam/Torenbeek component tables, NASA/NACA, Jane's -> calibration
     B = "B"   # manufacturer spec sheet, LAA/EAA data, peer-reviewed study -> calibration, inflated variance
+    C_PLUS = "C+"  # secondary compilation citing a Tier A/B source (e.g. Wikipedia citing Jane's) -> cluster
+    #               imputation and analog reasoning only, never calibration (doc 12 SC-27)
     C = "C"   # brochure, press, prototype claim -> analog reasoning only
 
 
@@ -103,6 +105,7 @@ class AircraftRecord:
     production_status: str = "production"     # production | out_of_production | prototype | certified_not_delivered
     manufacturer: str = ""                    # N2 de-duplication key part
     tcds_model: str = ""                      # N2 de-duplication key part (TCDS model designation)
+    cluster: str = ""                         # fleet cluster id for NI imputation (data/fleet/cluster_summary.csv)
     # Multi-category types (N6): category tag -> MTOW for that category, e.g. normal vs utility
     cert_categories: dict[str, V] = field(default_factory=dict)
 
@@ -165,6 +168,7 @@ class AircraftRecord:
     v_h: V | None = None
     v_s0: V | None = None
     v_s1: V | None = None
+    v_cruise: V | None = None                 # published cruise speed: NI imputation predictor only (not an L1 input)
 
     # powertrain
     powertrain: Powertrain = Powertrain.PISTON_AVGAS

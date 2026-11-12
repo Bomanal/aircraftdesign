@@ -80,3 +80,34 @@ def test_cli_from_eacsize(tmp_path, capsys):
     from hs1_weights.config import HS1Config
     HS1Config.model_validate(json.loads(cfg_out.read_text()))      # saved config re-loads
     assert json.loads(rep_out.read_text())["closure_point"]["converged"]
+
+
+def test_full_coupling_closes_with_eacsize_resizing(run):
+    """eacsize re-sizes at every iteration; at the closed state eacsize (with HS1's OEW) and HS1 agree."""
+    from hs1_weights.closure import close_mc_coupled, close_point_coupled
+    config_at, sizer = ea.full_coupling(run, OVERLAY, WPP)
+    s0 = run["results"]["summary"]
+    r = close_point_coupled(config_at, s0["mtom_kg"], s0["payload_kg"], final_report=True)
+    assert r.converged and r.report is not None
+    assert r.mtow_kg == pytest.approx(r.empty_weight_kg + s0["payload_kg"], abs=0.1)
+    # constraint geometry mode: wing area and power follow the mass (stall-sized wing keeps its wing loading)
+    assert r.config.wing.area_m2 > s0["wing_area_m2"] and r.history[-1]["power_kw"] > s0["installed_power_kw"]
+    assert r.config.wing.area_m2 == pytest.approx(r.mtow_kg / s0["wing_loading_kgm2"], rel=1e-3)
+    pack = r.report.components["battery_pack"].mass_kg.p50
+    closed = ea.summary_of(sizer.sized(r.mtow_kg, oew_excl_battery_kg=r.empty_weight_kg - pack))
+    assert closed["battery_kwh"] == pytest.approx(r.energy_wh / 1e3, rel=1e-3)      # same pack in both models
+    t = ea.mission_target(run)
+    assert t["target"] == "range" and closed["range_cruise_eol_km"] == pytest.approx(t["value"], rel=0.01)
+    m = close_mc_coupled(config_at, s0["mtom_kg"], s0["payload_kg"], n_samples=1000)
+    assert m["mtow"]["p50"] == pytest.approx(r.mtow_kg, rel=0.01) and m["converged_fraction"] > 0.95
+
+
+def test_cli_full_coupling(tmp_path, capsys):
+    out = tmp_path / "full.json"
+    assert cli_main(["from-eacsize", "--runs", str(RUNS), "--run", "R0003", "--coupling", "full", "--overlay",
+                     str(ROOT / "examples" / "eacsize_overlay.json"), "--wpp", str(WPP), "--out", str(out)]) == 0
+    assert "full coupling: converged" in capsys.readouterr().out
+    d = json.loads(out.read_text())
+    assert d["coupling"] == "full" and d["closure_point"]["converged"]
+    assert set(d) >= {"eacsize_original", "eacsize_closed", "mission_target", "comparison", "report"}
+    assert d["eacsize_closed"]["mtom_kg"] == pytest.approx(d["closure_point"]["mtow_kg"])

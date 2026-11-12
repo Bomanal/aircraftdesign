@@ -192,3 +192,34 @@ def test_param_distributions():
     assert Param(dist="triangular", low=0, mode=1, high=2).point() == pytest.approx(1)
     with pytest.raises(ValueError):
         Param(dist="uniform", low=3, high=1)
+
+
+def test_coupled_closure_resizes_and_mc_agrees(cfg):
+    """Generic coupled closure: the configuration is rebuilt at every W (here: constant wing loading)."""
+    from hs1_weights.closure import _with, close_mc_coupled, close_point_coupled
+    ws = 700.0 / cfg.wing.area_m2
+
+    def config_at(w):
+        s = w / ws
+        c = cfg.model_copy(update={"wing": cfg.wing.model_copy(update={"area_m2": s, "span_m": (10.0 * s) ** 0.5})})
+        e = 60e3 + 30.0 * (w - 700.0)          # mission energy rises with mass (about 30 Wh/kg here)
+        return _with(c, w, e), e
+    r = close_point_coupled(config_at, 700.0, 172.0, final_report=False)
+    assert r.converged and r.config is not None and r.config.wing.area_m2 == pytest.approx(r.mtow_kg / ws)
+    assert [h["wing_area_m2"] for h in r.history] == sorted(h["wing_area_m2"] for h in r.history)
+    m = close_mc_coupled(config_at, 700.0, 172.0, n_samples=2000)
+    assert m["converged_fraction"] > 0.95 and m["mtow"]["p50"] == pytest.approx(r.mtow_kg, rel=0.01)
+    assert m["converged_fraction"] + m["diverged_fraction"] + m["below_grid_fraction"] == pytest.approx(1.0)
+    assert m["wing_area_m2"]["p50"] == pytest.approx(r.mtow_kg / ws, rel=0.01)
+
+
+def test_coupled_closure_reports_infeasible_mission(cfg):
+    from hs1_weights.closure import _with, close_mc_coupled, close_point_coupled
+
+    def config_at(w):
+        e = float("inf") if w > 720.0 else 60e3
+        return (_with(cfg, w, e) if e < float("inf") else cfg), e
+    r = close_point_coupled(config_at, 700.0, 172.0, final_report=False)
+    assert not r.converged and r.diverged
+    m = close_mc_coupled(config_at, 700.0, 172.0, n_samples=500)
+    assert m["converged_fraction"] == 0.0 and "note" in m

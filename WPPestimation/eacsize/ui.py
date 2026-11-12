@@ -10,7 +10,7 @@ on demand through the WeightEstimation (hs1_weights) pipeline; see hs1_bridge.py
 from __future__ import annotations
 import json, os, threading, traceback, webbrowser
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .model import schema
 from .presets import PRESETS
@@ -70,9 +70,11 @@ def make_handler(store: RunStore, hs1: HS1Bridge = None):
                 return self._send(200, [run_index(r) for r in store.load()])
             if path == "/api/hs1":
                 return self._send(200, hs1.status())
+            if path.startswith("/api/runs/") and path.endswith("/structure-config"):
+                return self._structure(path.split("/")[3], "GET")
             if path.startswith("/api/runs/") and path.endswith("/hs1"):
                 try:
-                    res = hs1.get(path.split("/")[3])
+                    res = hs1.get(path.split("/")[3], self._coupling())
                 except ValueError as exc:
                     return self._send(400, {"error": str(exc)})
                 return self._send(200, res) if res else self._send(404, {"error": "no HS1 result for this run"})
@@ -89,6 +91,8 @@ def make_handler(store: RunStore, hs1: HS1Bridge = None):
             path = urlparse(self.path).path
             if path.startswith("/api/runs/") and path.endswith("/hs1"):
                 return self._hs1_run(path.split("/")[3])
+            if path.startswith("/api/runs/") and path.endswith("/structure-config"):
+                return self._structure(path.split("/")[3], "POST")
             if path != "/api/run":
                 return self._send(404, {"error": "not found"})
             try:
@@ -101,13 +105,18 @@ def make_handler(store: RunStore, hs1: HS1Bridge = None):
                 traceback.print_exc()
                 self._send(400, {"error": f"{type(exc).__name__}: {exc}"})
 
+        def _coupling(self):
+            q = parse_qs(urlparse(self.path).query)
+            return q.get("coupling", ["partial"])[0]
+
         def _hs1_run(self, run_id):
             try:
                 n = int(self.headers.get("Content-Length", 0))
                 body = json.loads(self.rfile.read(n) or b"{}")
                 if not store.get(run_id):
                     return self._send(404, {"error": f"run {run_id} not found"})
-                res = hs1.run(run_id, close=bool(body.get("close", True)), mc=bool(body.get("mc", True)))
+                res = hs1.run(run_id, close=bool(body.get("close", True)), mc=bool(body.get("mc", True)),
+                              coupling=str(body.get("coupling", "partial")))
                 self._send(200, res)
             except (ValueError, RuntimeError) as exc:
                 self._send(400, {"error": str(exc)})
@@ -115,10 +124,36 @@ def make_handler(store: RunStore, hs1: HS1Bridge = None):
                 traceback.print_exc()
                 self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
 
+        def _structure(self, run_id, method):
+            """Aircraft structural config of a run: GET catalogue + selection, POST save, DELETE reset."""
+            try:
+                if not store.get(run_id):
+                    return self._send(404, {"error": f"run {run_id} not found"})
+                if method == "GET":
+                    return self._send(200, hs1.get_structure(run_id))
+                if method == "DELETE":
+                    hs1.delete_structure(run_id)
+                    return self._send(200, hs1.get_structure(run_id))
+                n = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(n) or b"{}")
+                return self._send(200, hs1.save_structure(run_id, body.get("selection", body)))
+            except ValueError as exc:
+                return self._send(400, {"error": str(exc), "errors": list(getattr(exc, "errors", [str(exc)]))})
+            except (OSError, KeyError) as exc:
+                return self._send(400, {"error": f"structural config unavailable: {exc}"})
+            except Exception as exc:
+                traceback.print_exc()
+                return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
+
         def do_DELETE(self):
             path = urlparse(self.path).path
+            if path.startswith("/api/runs/") and path.endswith("/structure-config"):
+                return self._structure(path.split("/")[3], "DELETE")
             if path.startswith("/api/runs/") and path.endswith("/hs1"):
-                hs1.delete(path.split("/")[3])
+                try:
+                    hs1.delete(path.split("/")[3], self._coupling())
+                except ValueError as exc:
+                    return self._send(400, {"error": str(exc)})
                 return self._send(200, {"ok": True})
             if path.startswith("/api/runs/"):
                 rid = path.rsplit("/", 1)[1]

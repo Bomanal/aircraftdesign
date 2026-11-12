@@ -367,6 +367,7 @@ function renderResult(rec) {
   $("#loadcur").onclick = () => { setValues(rec); $("#label").value = rec.label; };
   bindHs1Buttons($("#result"));
   renderHistory();
+  if (SC.runId !== rec.id) loadStructCfg(rec.id);
   showStoredHs1(rec.id);
 }
 
@@ -429,8 +430,10 @@ function renderHistory() {
     <div class="tbl-wrap"><table><thead><tr><th></th><th>Run</th><th>Label</th><th>Status</th><th>Mode</th><th>Seats</th><th>Wh/kg</th>
     <th>MTOM kg</th><th>kWh</th><th>kW</th><th>L/D</th><th>Range km</th><th>End. h</th><th>Time</th><th>HS1</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     ${H.status && !H.status.available ? `<p class="banner">HS1 weights buttons are disabled: ${esc(H.status.reason || "")}</p>` : ""}
+    ${H.status && H.status.available ? `<p class="note">${calStatusNote(H.status.calibration)}</p>` : ""}
     <p class="note">Click a row to show that run. Tick two or more to compare them. <b>HS1 weights</b> runs the
-    WeightEstimation pipeline for that run and shows the result as a card above.</p></div>`;
+    WeightEstimation pipeline for that run in the selected coupling mode and shows the result as a card above;
+    partial and full results are kept side by side.</p></div>`;
   $("#history").querySelectorAll("tr.clickable").forEach((tr) => tr.addEventListener("click", async (e) => {
     if (e.target.closest("input,button")) return;
     renderResult(await api(`/api/runs/${tr.dataset.id}`));
@@ -449,16 +452,13 @@ function renderHistory() {
     if (S.current && S.current.id === b.dataset.del) {
       S.current = null;
       if (S.runs.length) renderResult(await api(`/api/runs/${S.runs[S.runs.length - 1].id}`));
-      else $("#result").innerHTML = '<p class="empty">No runs stored.</p>';
+      else { $("#result").innerHTML = '<p class="empty">No runs stored.</p>'; SC.runId = null; renderStructCfg(); }
     }
   }));
   const cmp = $("#cmp");
   if (cmp) cmp.onclick = compareSelected;
   bindHs1Buttons($("#history"));
-  for (const k of ["close", "mc"]) {
-    const cb = $(`#hs1${k}`);
-    if (cb) cb.onchange = () => { H.opts[k] = cb.checked; };
-  }
+  bindHs1Options($("#history"));
 }
 
 async function compareSelected() {
@@ -492,9 +492,16 @@ async function refreshRuns() {
 
 // ---------------------------------------------------------------------------------------
 // HS1 weights pipeline (WeightEstimation / hs1_weights), on demand for each stored run
+// Results are keyed by run and coupling mode ("R0003|full"), so both modes can be compared side by side.
 // ---------------------------------------------------------------------------------------
-const H = { status: null, done: new Set(), busy: new Set(), shown: new Map(), order: [], opts: { close: true, mc: true } };
+const H = { status: null, done: new Set(), busy: new Set(), shown: new Map(), order: [], opts: { close: true, mc: true, coupling: "full" } };
 const SEV = { info: "pass", warn: "warn", error: "fail" };
+const COUPLING = {
+  partial: { name: "Partial coupling", tip: "Airframe frozen at the eacsize run; only the mission energy follows the mass in the closure." },
+  full: { name: "Full coupling", tip: "eacsize re-sizes wing, power and geometry at every closure iteration; eacsize checks are re-run at the closed MTOW." },
+};
+const hkey = (id, c = H.opts.coupling) => `${id}|${c}`;
+try { const c = localStorage.getItem("hs1.coupling"); if (c in COUPLING) H.opts.coupling = c; } catch { /* storage unavailable */ }
 
 async function loadHs1Status() {
   try {
@@ -506,25 +513,46 @@ async function loadHs1Status() {
       ? "This dashboard server was started before the HS1 weights feature was added. Restart it (Ctrl+C, then python3 -m eacsize) and reload the page."
       : `HS1 status unavailable: ${e.message}` };
   }
+  if (H.status.available && !H.status.couplings)
+    H.status = { available: false, reason: "This dashboard server predates the coupling options. Restart it (Ctrl+C, then python3 -m eacsize) and reload the page." };
 }
 
-function hs1Label(id) {
-  return H.busy.has(id) ? "Running HS1…" : H.done.has(id) ? "Re-run HS1" : "HS1 weights";
+function hs1Label(id, c = H.opts.coupling) {
+  const k = hkey(id, c), tag = c === "full" ? "full" : "partial";
+  return H.busy.has(k) ? `Running HS1 (${tag})…` : H.done.has(k) ? `Re-run HS1 (${tag})` : `HS1 weights (${tag})`;
 }
 
 function hs1Options() {
   const dis = H.status && H.status.available ? "" : "disabled";
-  return `<label class="inline" title="MTOW closure with the eacsize mission energy"><input type="checkbox" id="hs1close" ${H.opts.close ? "checked" : ""} ${dis}> HS1 closure</label>` +
-    `<label class="inline" title="Per-sample Monte Carlo closure (about 5 s more)"><input type="checkbox" id="hs1mc" ${H.opts.mc ? "checked" : ""} ${dis}> Monte Carlo</label>`;
+  const full = H.opts.coupling === "full";
+  const seg = Object.entries(COUPLING).map(([c, m]) => `<button type="button" class="seg${H.opts.coupling === c ? " on" : ""}" ` +
+    `data-coupling="${c}" aria-pressed="${H.opts.coupling === c}" title="${esc(m.tip)}" ${dis}>${esc(m.name)}</button>`).join("");
+  return `<span class="segctl" role="group" aria-label="HS1 coupling with eacsize">${seg}</span>` +
+    `<label class="inline" title="${full ? "Full coupling always closes MTOW" : "MTOW closure with the eacsize mission energy"}"><input type="checkbox" id="hs1close" ${H.opts.close || full ? "checked" : ""} ${dis || (full ? "disabled" : "")}> closure</label>` +
+    `<label class="inline" title="Per-sample Monte Carlo closure (a few seconds more)"><input type="checkbox" id="hs1mc" ${H.opts.mc ? "checked" : ""} ${dis}> Monte Carlo</label>`;
+}
+
+function bindHs1Options(root) {
+  for (const k of ["close", "mc"]) {
+    const cb = root.querySelector(`#hs1${k}`);
+    if (cb) cb.onchange = () => { H.opts[k] = cb.checked; };
+  }
+  root.querySelectorAll("[data-coupling]").forEach((b) => {
+    b.onclick = () => {
+      H.opts.coupling = b.dataset.coupling;
+      try { localStorage.setItem("hs1.coupling", H.opts.coupling); } catch { /* storage unavailable */ }
+      refreshHs1Buttons();
+    };
+  });
 }
 
 function bindHs1Buttons(root) {
   root.querySelectorAll("[data-hs1]").forEach((b) => {
-    const id = b.dataset.hs1;
+    const id = b.dataset.hs1, c = b.dataset.hs1c || H.opts.coupling;
     const ok = H.status && H.status.available;
-    b.disabled = !ok || H.busy.has(id);
-    b.title = ok ? "Run the WeightEstimation pipeline for this run" : (H.status?.reason || "HS1 weights unavailable");
-    b.onclick = (e) => { e.stopPropagation(); runHs1(id); };
+    b.disabled = !ok || H.busy.has(hkey(id, c));
+    b.title = ok ? `Run the WeightEstimation pipeline for this run (${COUPLING[c].name.toLowerCase()})` : (H.status?.reason || "HS1 weights unavailable");
+    b.onclick = (e) => { e.stopPropagation(); runHs1(id, c); };
   });
   root.querySelectorAll("[data-hs1close]").forEach((b) => {
     b.onclick = () => { H.order = H.order.filter((x) => x !== b.dataset.hs1close); renderHs1Cards(); };
@@ -535,104 +563,186 @@ function refreshHs1Buttons() {
   renderHistory();
   const cur = $("#hs1cur");
   if (cur) { cur.textContent = hs1Label(cur.dataset.hs1); bindHs1Buttons($("#result")); }
+  const sub = $("#scSubmit");
+  if (sub) sub.textContent = scSubmitLabel();
 }
 
-function front(id) { H.order = [id, ...H.order.filter((x) => x !== id)]; }
+function front(k) { H.order = [k, ...H.order.filter((x) => x !== k)]; }
 
-async function runHs1(id) {
-  if (H.busy.has(id)) return;
-  H.busy.add(id); front(id); refreshHs1Buttons(); renderHs1Cards(id);
+async function runHs1(id, c = H.opts.coupling) {
+  const k = hkey(id, c);
+  if (H.busy.has(k)) return;
+  H.busy.add(k); front(k); refreshHs1Buttons(); renderHs1Cards(k);
   try {
     const res = await api(`/api/runs/${id}/hs1`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ close: H.opts.close, mc: H.opts.close && H.opts.mc }) });
-    H.shown.set(id, res); H.done.add(id);
+      body: JSON.stringify({ coupling: c, close: c === "full" || H.opts.close, mc: (c === "full" || H.opts.close) && H.opts.mc }) });
+    H.shown.set(k, res); H.done.add(k);
+    // the server resolves the newest calibration at every run; keep the stale-result check in step with it
+    try { H.status.calibration = (await api("/api/hs1")).calibration; } catch { /* keep the previous status */ }
   } catch (e) {
-    H.shown.set(id, { run_id: id, error: e.message });
+    H.shown.set(k, { run_id: id, coupling: c, error: e.message });
   } finally {
-    H.busy.delete(id); refreshHs1Buttons(); renderHs1Cards(id);
+    H.busy.delete(k); refreshHs1Buttons(); renderHs1Cards(k);
   }
 }
 
 async function showStoredHs1(id) {
-  if (!H.done.has(id) || H.busy.has(id)) return;
-  if (!H.shown.has(id)) {
-    try { H.shown.set(id, await api(`/api/runs/${id}/hs1`)); } catch { return; }
+  for (const c of ["partial", "full"]) {
+    const k = hkey(id, c);
+    if (!H.done.has(k) || H.busy.has(k)) continue;
+    if (!H.shown.has(k)) {
+      try { H.shown.set(k, await api(`/api/runs/${id}/hs1?coupling=${c}`)); } catch { continue; }
+    }
+    front(k);
   }
-  front(id); renderHs1Cards();
+  renderHs1Cards();
 }
 
 function dropHs1(id) {
-  H.done.delete(id); H.shown.delete(id); H.order = H.order.filter((x) => x !== id); renderHs1Cards();
+  for (const c of ["partial", "full"]) { const k = hkey(id, c); H.done.delete(k); H.shown.delete(k); H.order = H.order.filter((x) => x !== k); }
+  renderHs1Cards();
 }
 
 function renderHs1Cards(focus) {
   const box = $("#hs1cards");
-  box.innerHTML = H.order.map((id) => H.busy.has(id) ? hs1Running(id) : hs1Card(id, H.shown.get(id))).join("");
+  box.innerHTML = H.order.map((k) => H.busy.has(k) ? hs1Running(k) : hs1Card(k, H.shown.get(k))).join("");
   bindHs1Buttons(box);
-  if (focus) document.getElementById(`hs1-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (focus) document.getElementById(`hs1-${focus.replace("|", "-")}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function hs1Head(id, title, pill, meta) {
-  return `<div class="rhead"><h2>HS1 weights · ${esc(id)}${title ? ` · ${esc(title)}` : ""}</h2>${pill}` +
-    `<span class="meta">${meta || ""}</span>` +
-    `<button class="small" type="button" data-hs1="${esc(id)}">${hs1Label(id)}</button>` +
-    `<button class="small" type="button" data-hs1close="${esc(id)}" aria-label="Hide this card">Hide</button></div>`;
+function hs1Head(k, title, pill, meta) {
+  const [id, c] = k.split("|");
+  return `<div class="rhead"><h2>HS1 weights · ${esc(id)}${title ? ` · ${esc(title)}` : ""}</h2>` +
+    `<span class="pill coupling ${c}">${esc(COUPLING[c].name)}</span>${pill}<span class="meta">${meta || ""}</span>` +
+    `<button class="small" type="button" data-hs1="${esc(id)}" data-hs1c="${c}">${hs1Label(id, c)}</button>` +
+    `<button class="small" type="button" data-hs1close="${esc(k)}" aria-label="Hide this card">Hide</button></div>`;
 }
 
-function hs1Running(id) {
-  return `<div class="card hs1" id="hs1-${esc(id)}">${hs1Head(id, "", '<span class="pill warning">running</span>',
-    "WeightEstimation pipeline: predict, then closure with the eacsize mission energy …")}</div>`;
+function hs1Running(k) {
+  const c = k.split("|")[1];
+  return `<div class="card hs1" id="hs1-${esc(k.replace("|", "-"))}">${hs1Head(k, "", '<span class="pill warning">running</span>',
+    c === "full" ? "eacsize re-sizes the aircraft at every closure iteration …" : "predict, then closure with the eacsize mission energy …")}</div>`;
 }
 
 const dist = (d, n = 0) => (d ? `${fmt(d.p50, n)}<small>P10–P90 ${fmt(d.p10, n)}–${fmt(d.p90, n)}</small>` : "–");
 const kpiBox = (k, v, note) => `<div class="kpi"><div class="k">${esc(k)}</div><div class="v">${v}</div>${note ? `<div class="k">${note}</div>` : ""}</div>`;
+const sgn = (v, d = 1) => `${v >= 0 ? "+" : ""}${fmt(v, d)}`;
 
-function hs1Card(id, x) {
+function targetNote(t) {
+  if (!t) return "";
+  return `<p class="note">Closure sizes the pack for the run's mission target: <b>${t.target} ${fmt(t.value, t.unit === "km" ? 0 : 2)} ${esc(t.unit)}</b>` +
+    `${t.at_end_of_life ? " at end of life" : ""}, ${fmt(t.reserve_min, 0)} min reserve, cruise ${fmt(t.v_cruise_kmh, 0)} km/h.` +
+    `${t.note ? ` ${esc(t.note)}.` : ""}</p>`;
+}
+
+function closedDesignTable(x) {
+  const o = x.eacsize_original, c = x.eacsize_closed;
+  if (!o || !c) return "";
+  const rows = [["MTOM", "mtom_kg", "kg", 1], ["Wing area", "wing_area_m2", "m²", 2], ["Span", "span_m", "m", 2],
+    ["Wing loading", "wing_loading_kgm2", "kg/m²", 1], ["Installed shaft power", "installed_power_kw", "kW", 1],
+    ["Fuselage length", "fus_len_m", "m", 2], ["Pack energy (nominal)", "battery_kwh", "kWh", 1],
+    ["Range at cruise, end of life", "range_cruise_eol_km", "km", 0], ["Endurance at V_mp", "endurance_vmp_h", "h", 2],
+    ["Stall speed V_S0", "vs0_kcas", "KCAS", 1], ["Take-off over 15 m", "takeoff_15m_m", "m", 0], ["Rate of climb SL", "roc_sl_cont_ms", "m/s", 2]]
+    .map(([n, key, u, d]) => `<tr><td>${esc(n)}</td><td class="n">${fmt(o[key], d)}</td><td class="n">${fmt(c[key], d)}</td>` +
+      `<td class="n">${o[key] == null || c[key] == null ? "–" : sgn(c[key] - o[key], d)}</td><td>${esc(u)}</td></tr>`).join("");
+  const bad = (c.checks || []).filter((k) => k.severity !== "pass");
+  const checks = bad.length ? bad.map((k) => `<tr><td>${esc(k.name)}</td><td class="n">${fmt(k.value, 1)}</td><td class="n">${fmt(k.limit, 1)}</td>` +
+    `<td>${esc(k.unit || "")}</td><td><span class="pill ${k.severity}">${esc(k.severity)}</span></td></tr>`).join("")
+    : `<tr><td colspan="5" class="note">All eacsize checks pass at the closed design.</td></tr>`;
+  return `<div class="grid2" style="margin-top:14px">
+    <div><h3>Closed design: eacsize re-sized at ${fmt(c.mtom_kg, 0)} kg</h3><div class="tbl-wrap"><table><thead><tr><th></th><th>eacsize run</th><th>Closed</th><th>Δ</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="note">eacsize run at the closed MTOW with HS1's empty weight injected (its OEW override), so its pack, range, stall, take-off and climb describe the closed aircraft.</p></div>
+    <div><h3>eacsize checks at the closed design <span class="pill ${c.status}">${esc(c.status)}</span></h3><div class="tbl-wrap"><table><tbody>${checks}</tbody></table></div>
+      ${(c.messages || []).length ? `<ul class="msgs">${c.messages.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}</div>
+  </div>`;
+}
+
+function historyTable(cp, full) {
+  if (!cp || !cp.history || !cp.history.length) return "";
+  const cols = full ? ["W_dg", "E_Wh", "W_E_p50", "wing_area_m2", "power_kw"] : ["W_dg", "E_Wh", "W_E_p50"];
+  const head = { W_dg: "W_dg kg", E_Wh: "Pack kWh", W_E_p50: "W_E P50 kg", wing_area_m2: "S m²", power_kw: "P kW" };
+  const cell = (h, k) => k === "E_Wh" ? fmt(h[k] / 1000, 2) : fmt(h[k], k === "wing_area_m2" ? 2 : 1);
+  return `<details class="more"><summary>Convergence (${cp.iterations} iterations${cp.converged ? "" : ", not converged"})</summary><div class="tbl-wrap"><table><thead><tr><th>It.</th>` +
+    cols.map((k) => `<th>${head[k]}</th>`).join("") + `</tr></thead><tbody>` +
+    cp.history.map((h) => `<tr><td class="n">${h.iteration}</td>${cols.map((k) => `<td class="n">${h[k] == null ? "–" : cell(h, k)}</td>`).join("")}</tr>`).join("") +
+    `</tbody></table></div></details>`;
+}
+
+function hs1Card(k, x) {
   if (!x) return "";
+  const domId = `hs1-${esc(k.replace("|", "-"))}`;
   if (x.error) {
-    return `<div class="card hs1" id="hs1-${esc(id)}">${hs1Head(id, "", '<span class="pill fail">failed</span>', "")}` +
+    return `<div class="card hs1" id="${domId}">${hs1Head(k, "", '<span class="pill fail">failed</span>', "")}` +
       `<div class="error">${esc(x.error)}</div></div>`;
   }
+  const [id, c] = k.split("|"), full = c === "full";
   const rep = x.report, cal = rep.calibration, cp = x.closure_point, mc = x.closure_mc;
   const errs = rep.rule_flags.filter((f) => f.severity === "error").length;
   const warns = rep.rule_flags.filter((f) => f.severity === "warn").length;
   const pill = `<span class="pill ${errs ? "fail" : warns ? "warn" : "pass"}">${errs ? errs + " error" : warns ? warns + " warn" : "ok"}</span>`;
   const meta = `${esc((x.generated || "").replace("T", " "))} · ${fmt(x.runtime_s, 1)} s · k: ${esc(cal.engine)} · ` +
     `${rep.versions.n_samples} samples · seed ${rep.versions.seed}`;
-  const banner = cal.engine === "prior"
-    ? `<p class="banner">No fleet calibration yet: technology factors k are drawn from their priors. HS1 detail that eacsize
-       does not model (DEP split, bays, equipment, materials, stations, bottom-up priors) comes from
-       <code>${esc(x.overlay)}</code>, which holds illustrative placeholders. Treat these numbers as indicative.</p>` : "";
-  let kpis = kpiBox("Empty weight W_E [kg]", dist(rep.empty_weight)) +
-    kpiBox("W_E + payload at eacsize MTOM [kg]", dist(rep.mtow), `eacsize MTOM ${fmt(x.eacsize_mtom_kg, 0)} kg`);
-  if (cp) {
-    kpis += kpiBox("Closed MTOW [kg]", fmt(cp.mtow_kg, 0), `${cp.converged ? "converged" : "NOT converged"} in ${cp.iterations} it. · eacsize ${fmt(x.eacsize_mtom_kg, 0)} kg`) +
-      kpiBox("Pack energy after closure [kWh]", fmt(cp.energy_wh / 1000, 1), `eacsize ${fmt(x.eacsize_battery_kwh, 1)} kWh`);
+  const fromSel = x.structure_config?.source === "selection";
+  const usedCal = calUsed(x), curCal = H.status?.calibration?.name || null;
+  const detail = fromSel
+    ? "HS1 detail that eacsize does not model comes from this run's Aircraft Structural Config; parameters left at default are HS1 reference placeholders."
+    : `HS1 detail that eacsize does not model (DEP split, bays, equipment, materials, stations, bottom-up priors) comes from
+       <code>${esc(x.overlay)}</code>, which holds illustrative placeholders. Set it in the Aircraft Structural Config card.`;
+  const stale = usedCal !== curCal && H.status?.calibration?.mode !== "missing"
+    ? (curCal ? ` Fleet calibration <code>${esc(curCal)}</code> is now the latest: run HS1 weights again to apply it.`
+      : " The dashboard is now set to run without a fleet calibration.") : "";
+  const banner = !usedCal
+    ? `<p class="banner">No fleet calibration used: technology factors k are drawn from their priors.${stale} ${detail} Treat these numbers as indicative.</p>`
+    : `${stale ? `<p class="banner">Computed with fleet calibration <code>${esc(usedCal)}</code>.${stale}</p>` : ""}` +
+      `<p class="note">Fleet-calibrated: <code>${esc(usedCal)}</code> · ${esc(cal.engine)} · ${fmt(cal.n_records, 0)} calibration records` +
+      `${cal.collapse_struct ? " · one shared structural factor k_struct (component k not separately identifiable)" : ""}.</p>` +
+      (fromSel ? "" : `<p class="banner">${detail}</p>`);
+  const ce = x.eacsize_closed;
+  let kpis;
+  if (full) {
+    kpis = kpiBox("Closed MTOW [kg]", fmt(cp.mtow_kg, 0), `eacsize run ${fmt(x.eacsize_mtom_kg, 0)} kg · ${sgn(cp.mtow_kg - x.eacsize_mtom_kg, 0)} kg`) +
+      kpiBox("Empty weight W_E at closure [kg]", dist(rep.empty_weight)) +
+      kpiBox("Pack energy [kWh]", fmt(cp.energy_wh / 1000, 1), `eacsize run ${fmt(x.eacsize_battery_kwh, 1)} kWh`) +
+      (ce ? kpiBox("Wing area [m²]", fmt(ce.wing_area_m2, 2), `was ${fmt(x.eacsize_original.wing_area_m2, 2)} m²`) +
+        kpiBox("Installed power [kW]", fmt(ce.installed_power_kw, 1), `was ${fmt(x.eacsize_original.installed_power_kw, 1)} kW`) : "");
+  } else {
+    kpis = kpiBox("Empty weight W_E [kg]", dist(rep.empty_weight)) +
+      kpiBox("W_E + payload at eacsize MTOM [kg]", dist(rep.mtow), `eacsize MTOM ${fmt(x.eacsize_mtom_kg, 0)} kg`);
+    if (cp) {
+      kpis += kpiBox("Closed MTOW [kg]", fmt(cp.mtow_kg, 0), `${cp.converged ? "converged" : "NOT converged"} in ${cp.iterations} it. · eacsize ${fmt(x.eacsize_mtom_kg, 0)} kg`) +
+        kpiBox("Pack energy after closure [kWh]", fmt(cp.energy_wh / 1000, 1), `eacsize ${fmt(x.eacsize_battery_kwh, 1)} kWh`);
+    }
   }
   if (mc) {
     kpis += kpiBox("Monte Carlo closed MTOW [kg]", dist(mc.mtow)) +
       kpiBox("Samples that closed", `${fmt(mc.converged_fraction * 100, 1)}<small>%</small>`,
         mc.diverged_fraction ? `${fmt(mc.diverged_fraction * 100, 1)}% weight snowball` : "");
+    if (full && mc.wing_area_m2) kpis += kpiBox("Monte Carlo wing area [m²]", dist(mc.wing_area_m2, 2));
   }
+  const intro = full
+    ? `<p class="note"><b>Full coupling:</b> every iteration re-runs eacsize's sizing at the new MTOM (constraint diagram, wing, power, geometry, mission energy) and HS1 re-predicts the weights; the component table compares with eacsize's own class-II masses at the closed MTOM.</p>`
+    : `<p class="note"><b>Partial coupling:</b> the airframe (wing, power, geometry) stays at the eacsize run; only the mission energy follows the mass in the closure. Components are predicted at the eacsize MTOM.</p>`;
   const comp = x.comparison.map((r) => `<tr><td>${esc(r.component.replace(/_/g, " "))}</td><td class="n">${fmt(r.eacsize_kg, 1)}</td>` +
     `<td class="n">${fmt(r.p10, 1)}</td><td class="n">${fmt(r.p50, 1)}</td><td class="n">${fmt(r.p90, 1)}</td>` +
-    `<td class="n">${r.p50 - r.eacsize_kg >= 0 ? "+" : ""}${fmt(r.p50 - r.eacsize_kg, 1)}</td></tr>`).join("");
+    `<td class="n">${sgn(r.p50 - r.eacsize_kg)}</td></tr>`).join("");
   const flags = rep.rule_flags.map((f) => `<tr><td>${esc(f.id)}</td><td><span class="pill ${SEV[f.severity] || "warn"}">${esc(f.severity)}</span></td><td>${esc(f.message)}</td></tr>`).join("");
   const sob = Object.entries(rep.sobol || {});
   const smax = Math.max(0.01, ...sob.map(([, v]) => v));
-  const sobol = sob.map(([k, v]) => `<div class="row"><span title="${esc(k)}">${esc(k.replace(/^powertrain\./, "").replace(/^battery_bays\./, "bays."))}</span>` +
+  const sobol = sob.map(([n, v]) => `<div class="row"><span title="${esc(n)}">${esc(n.replace(/^powertrain\./, "").replace(/^battery_bays\./, "bays."))}</span>` +
     `<div class="bar" style="width:${(Math.max(v, 0) / smax * 100).toFixed(1)}%;background:var(--s4)"></div><span class="n">${fmt(v, 2)}</span></div>`).join("");
-  const comps = Object.entries(rep.components).map(([k, c]) => `<tr><td>${esc(k.replace(/_/g, " "))}${c.transcription_verified ? "" : ' <span class="tag" title="equation transcription not verified">U</span>'}</td>` +
-    `<td class="n">${fmt(c.mass_kg.p10, 1)}</td><td class="n">${fmt(c.mass_kg.p50, 1)}</td><td class="n">${fmt(c.mass_kg.p90, 1)}</td>` +
-    `<td>${esc(c.method)}</td><td class="n">${c.k ? fmt(c.k.p50, 3) : "–"}</td><td class="note">${esc(c.governing_load_case)}</td></tr>`).join("");
-  const cg = rep.cg ? Object.entries(rep.cg.cases).map(([k, c]) => `<tr><td>${esc(k.replace(/_/g, " "))}</td><td class="n">${fmt(c.mass_kg.p50, 0)}</td>` +
-    `<td class="n">${fmt(c.x_m.p50, 2)}</td><td class="n">${c.pct_mac ? fmt(c.pct_mac.p50, 1) : "–"}</td>` +
-    `<td class="n">${c.tip_over_risk_frac == null ? "–" : fmt(c.tip_over_risk_frac * 100, 0) + "%"}</td></tr>`).join("") : "";
+  const comps = Object.entries(rep.components).map(([n, cc]) => `<tr><td>${esc(n.replace(/_/g, " "))}${cc.transcription_verified ? "" : ' <span class="tag" title="equation transcription not verified">U</span>'}</td>` +
+    `<td class="n">${fmt(cc.mass_kg.p10, 1)}</td><td class="n">${fmt(cc.mass_kg.p50, 1)}</td><td class="n">${fmt(cc.mass_kg.p90, 1)}</td>` +
+    `<td>${esc(cc.method)}</td><td class="n">${cc.k ? fmt(cc.k.p50, 3) : "–"}</td><td class="note">${esc(cc.governing_load_case)}</td></tr>`).join("");
+  const cg = rep.cg ? Object.entries(rep.cg.cases).map(([n, cc]) => `<tr><td>${esc(n.replace(/_/g, " "))}</td><td class="n">${fmt(cc.mass_kg.p50, 0)}</td>` +
+    `<td class="n">${fmt(cc.x_m.p50, 2)}</td><td class="n">${cc.pct_mac ? fmt(cc.pct_mac.p50, 1) : "–"}</td>` +
+    `<td class="n">${cc.tip_over_risk_frac == null ? "–" : fmt(cc.tip_over_risk_frac * 100, 0) + "%"}</td></tr>`).join("") : "";
   const st = rep.stall_area_min_m2;
-  return `<div class="card hs1" id="hs1-${esc(id)}">${hs1Head(id, x.run_label, pill, meta)}${banner}
+  return `<div class="card hs1 ${c}" id="${domId}">${hs1Head(k, x.run_label, pill, meta)}${banner}${intro}
+    <p class="note scsrc">${structCfgNote(x)}.</p>${targetNote(x.mission_target)}
     <div class="kpis">${kpis}</div>
+    ${full ? closedDesignTable(x) : ""}
     <div class="grid2" style="margin-top:14px">
-      <div><h3>eacsize vs HS1 weights [kg]</h3><div class="tbl-wrap"><table><thead><tr><th>Component</th><th>eacsize</th><th>P10</th><th>P50</th><th>P90</th><th>Δ P50</th></tr></thead><tbody>${comp}</tbody></table></div></div>
+      <div><h3>${full ? "eacsize class II vs HS1 weights at the closed MTOM [kg]" : "eacsize vs HS1 weights [kg]"}</h3><div class="tbl-wrap"><table><thead><tr><th>Component</th><th>eacsize</th><th>P10</th><th>P50</th><th>P90</th><th>Δ P50</th></tr></thead><tbody>${comp}</tbody></table></div></div>
       <div><h3>Rule checks</h3><div class="tbl-wrap"><table><tbody>${flags}</tbody></table></div>
         <p class="note">Min. wing area: V_S1 ≤ 59 kt ${fmt(st.VS1_59kt_clean.p50, 2)} m², V_S0 ≤ 61 kt ${fmt(st.VS0_61kt_landing.p50, 2)} m² (current ${fmt(st.current_area_m2, 2)} m², power-idle C_L,max).</p></div>
     </div>
@@ -640,14 +750,206 @@ function hs1Card(id, x) {
       <div class="bars"><h3>Variance drivers of W_E (Sobol total index)</h3>${sobol || '<p class="note">not computed</p>'}</div>
       <div><h3>CG loading cases (P50)</h3>${cg ? `<div class="tbl-wrap"><table><thead><tr><th>Case</th><th>kg</th><th>x m</th><th>%MAC</th><th>tip-over</th></tr></thead><tbody>${cg}</tbody></table></div>` : '<p class="note">no stations in the overlay</p>'}</div>
     </div>
+    ${historyTable(cp, full)}
     <details class="more"><summary>All components (${Object.keys(rep.components).length})</summary><div class="tbl-wrap"><table><thead><tr><th>Component</th><th>P10</th><th>P50</th><th>P90</th><th>Method</th><th>k P50</th><th>Governing load case</th></tr></thead><tbody>${comps}</tbody></table></div>
       <p class="note"><span class="tag">U</span> equation transcription not yet verified against the source text.</p></details>
     <details class="more"><summary>Assumptions (${rep.assumptions.length}) · unverified criteria (${rep.unverified_criteria.length})</summary>
       <ul class="note">${rep.assumptions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
       <ul class="note">${rep.unverified_criteria.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></details>
-    <p class="note"><a href="/api/runs/${encodeURIComponent(id)}/hs1" target="_blank" rel="noopener">Full result JSON</a> ·
-      stored in runs/hs1_weights/${esc(id)}.json</p>
+    <p class="note"><a href="/api/runs/${encodeURIComponent(id)}/hs1?coupling=${c}" target="_blank" rel="noopener">Full result JSON</a> ·
+      stored in runs/hs1_weights/${esc(id)}${full ? ".full" : ""}.json</p>
   </div>`;
+}
+
+// ---------------------------------------------------------------------------------------
+// Aircraft Structural Config (hs1_weights.structure_config): the HS1 layout and structure inputs eacsize does not
+// model, chosen per run from categorical options or ranges, then submitted to start the HS1 iterations.
+// ---------------------------------------------------------------------------------------
+const SC = { runId: null, data: null, sel: null, open: new Set(["DEP layout"]), msg: "", errors: [], busy: false };
+const SRC_TAG = (s) => s.startsWith("eacsize") ? ["E", "centred on the eacsize run"] : s.includes("scaled") ? ["S", "HS1 placeholder scaled to the eacsize aircraft"] : ["P", "HS1 reference placeholder"];
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const scApplies = (p, sel) => Object.entries(p.requires || {}).every(([k, vals]) => vals.includes(String(sel[k])));
+
+async function loadStructCfg(id) {
+  SC.runId = id; SC.errors = []; SC.msg = "";
+  if (!(H.status && H.status.available && H.status.structure_config)) { SC.data = null; renderStructCfg(); return; }
+  try {
+    SC.data = await api(`/api/runs/${id}/structure-config`);
+    SC.sel = JSON.parse(JSON.stringify(SC.data.selection));
+    if (SC.data.stale_errors?.length) SC.errors = ["The saved selection no longer fits the catalogue; defaults are shown:", ...SC.data.stale_errors];
+  } catch (e) { SC.data = { error: e.message }; }
+  renderStructCfg();
+}
+
+function scValue(p) {
+  const v = SC.sel[p.id];
+  return p.kind === "band" ? `${fmt(v[0], 2)}–${fmt(v[1], 2)}` : p.kind === "choice" ? (p.options.find((o) => o.value === v)?.label || v) : fmt(v, 3);
+}
+
+function scDefault(p) {
+  const d = p.default;
+  if (p.kind === "choice") return p.options.find((o) => o.value === d)?.label || d;
+  return p.kind === "band" ? `${d[0]}–${d[1]}` : String(d);
+}
+
+function scControl(p) {
+  const v = SC.sel[p.id], dis = scApplies(p, SC.sel) ? "" : "disabled";
+  if (p.kind === "choice") {
+    return `<select data-sc="${esc(p.id)}" ${dis} aria-label="${esc(p.label)}">${p.options.map((o) =>
+      `<option value="${esc(o.value)}" ${o.value === v ? "selected" : ""} title="${esc(o.note)}">${esc(o.label)}</option>`).join("")}</select>`;
+  }
+  const num = (val, i, lab) => `<input type="number" data-sc="${esc(p.id)}" ${i == null ? "" : `data-i="${i}"`} min="${p.min}" max="${p.max}" step="${p.step}" value="${val}" ${dis} aria-label="${esc(lab)}">`;
+  if (p.kind === "band") return `<span class="band">${num(v[0], 0, p.label + " low")}<span>–</span>${num(v[1], 1, p.label + " high")}</span>`;
+  return num(v, null, p.label);
+}
+
+function scRow(p) {
+  const [t, tt] = SRC_TAG(p.source || "");
+  const ok = scApplies(p, SC.sel), chg = !same(SC.sel[p.id], p.default);
+  const range = p.kind === "choice" ? "" : `${p.min}–${p.max}`;
+  const tip = [p.label, p.note, `Source: ${p.source}`, range ? `Allowed: ${range} ${p.unit}` : "", p.kind === "band" ? "Band: uniform between low and high in the Monte Carlo" : "",
+    p.requires ? `Applies when ${Object.entries(p.requires).map(([k, v]) => `${k} ∈ {${v.join(", ")}}`).join("; ")}` : ""].filter(Boolean).join("\n");
+  return `<div class="f scf${chg ? " changed" : ""}${ok ? "" : " muted"}" data-row="${esc(p.id)}">
+    <label title="${esc(tip)}"><span class="tag" title="${esc(tt)}">${t}</span><span class="t">${esc(p.label)}</span></label>
+    ${scControl(p)}<span class="u" title="${esc(p.unit)}">${esc(p.unit)}</span>
+    <span class="def" title="default (${esc(tt)})${range ? ` · allowed ${esc(range)}` : ""}">${chg ? `default ${esc(scDefault(p))}` : range ? esc(range) : ""}</span></div>`;
+}
+
+function scDirty() { return SC.data && SC.sel && !same(SC.sel, SC.data.selection); }
+
+function scSubmitLabel() {
+  return `Submit & run HS1 iterations (${COUPLING[H.opts.coupling].name.toLowerCase()})`;
+}
+
+function renderStructCfg() {
+  const box = $("#structcfg");
+  if (!box) return;
+  if (!SC.runId) { box.innerHTML = ""; return; }
+  if (!SC.data) {
+    box.innerHTML = H.status && H.status.available && !H.status.structure_config
+      ? `<div class="card scfg"><h2>Aircraft Structural Config</h2><p class="banner">This dashboard server predates the Aircraft Structural Config. Restart it (Ctrl+C, then python3 -m eacsize) and reload the page.</p></div>` : "";
+    return;
+  }
+  if (SC.data.error) { box.innerHTML = `<div class="card scfg"><h2>Aircraft Structural Config · ${esc(SC.runId)}</h2><div class="error">${esc(SC.data.error)}</div></div>`; return; }
+  const d = SC.data, cat = d.catalogue;
+  const nchg = cat.filter((p) => scApplies(p, SC.sel) && !same(SC.sel[p.id], p.default)).length;
+  const state = scState();
+  const groups = d.groups.map((g) => {
+    const ps = cat.filter((p) => p.group === g);
+    const gc = ps.filter((p) => scApplies(p, SC.sel) && !same(SC.sel[p.id], p.default)).length;
+    return `<details class="grp" data-grp="${esc(g)}" ${SC.open.has(g) ? "open" : ""}><summary><span>${esc(g)}</span>` +
+      `<span class="cnt">${gc ? `${gc} changed · ` : ""}${ps.length}</span></summary><div class="fields">${ps.map(scRow).join("")}</div></details>`;
+  }).join("");
+  const ref = d.reference;
+  box.innerHTML = `<div class="card scfg">
+    <div class="rhead"><h2>Aircraft Structural Config · ${esc(SC.runId)}</h2>${state}
+      <span class="meta">selection ${esc(d.hash)}${d.saved_at ? ` · saved ${esc(d.saved_at.replace("T", " "))}` : ""} · <span class="scchg">${nchg}</span> of ${cat.length} changed ·
+      eacsize fuselage ${fmt(ref.fus_len_m, 2)} m, span ${fmt(ref.span_m, 2)} m</span></div>
+    <p class="note">The HS1 detail that eacsize does not model: DEP layout, motors, harness, thermal, bays, equipment, materials,
+      tail shape and CG stations. Pick an option, or a value inside the allowed range. <span class="tag">E</span> defaults are centred
+      on this eacsize run; <span class="tag">S</span> are HS1 reference placeholders scaled to this aircraft; <span class="tag">P</span> are HS1 reference placeholders.
+      Low–high bands are uncertain quantities, carried as uniform distributions in the Monte Carlo. Stations and lengths are fractions
+      of the fuselage length, so in full coupling they follow eacsize as it re-sizes the aircraft.</p>
+    <div class="scgroups">${groups}</div>
+    ${SC.errors.length ? `<div class="error"><ul>${SC.errors.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div>` : ""}
+    <div class="scactions">
+      <button type="button" id="scReset">Reset to defaults</button>
+      <button type="button" id="scSave" ${SC.busy ? "disabled" : ""}>Save</button>
+      <button type="button" class="primary" id="scSubmit" ${SC.busy || !(H.status && H.status.available) ? "disabled" : ""}>${esc(scSubmitLabel())}</button>
+      <span class="note" id="scMsg">${esc(SC.msg)}</span>
+    </div></div>`;
+  bindStructCfg(box);
+}
+
+function bindStructCfg(box) {
+  box.querySelectorAll("details.grp").forEach((dt) => dt.addEventListener("toggle", () => {
+    dt.open ? SC.open.add(dt.dataset.grp) : SC.open.delete(dt.dataset.grp);
+  }));
+  box.querySelectorAll("[data-sc]").forEach((el) => el.addEventListener("change", () => {
+    const p = SC.data.catalogue.find((q) => q.id === el.dataset.sc);
+    if (p.kind === "choice") SC.sel[p.id] = el.value;
+    else {
+      const v = parseFloat(el.value);
+      if (!Number.isFinite(v)) return;
+      if (p.kind === "band") { const b = [...SC.sel[p.id]]; b[+el.dataset.i] = v; SC.sel[p.id] = b; } else SC.sel[p.id] = v;
+    }
+    SC.errors = []; SC.msg = "";
+    scUpdate(box);           // in place: re-rendering here would remove the field during its own blur
+  }));
+  $("#scReset").onclick = () => {
+    SC.sel = JSON.parse(JSON.stringify(SC.data.defaults)); SC.errors = []; SC.msg = "Defaults restored (not saved yet).";
+    const y = $("#results").scrollTop; renderStructCfg(); $("#results").scrollTop = y;
+  };
+  $("#scSave").onclick = () => saveStructCfg(false);
+  $("#scSubmit").onclick = () => saveStructCfg(true);
+}
+
+function scState() {
+  return scDirty() ? '<span class="pill warn">unsaved changes</span>' : SC.data.saved ? '<span class="pill pass">saved</span>' : '<span class="pill coupling partial">defaults · not saved</span>';
+}
+
+function scUpdate(box) {
+  const cat = SC.data.catalogue;
+  for (const p of cat) {
+    const row = box.querySelector(`[data-row="${CSS.escape(p.id)}"]`);
+    if (!row) continue;
+    const ok = scApplies(p, SC.sel), chg = !same(SC.sel[p.id], p.default);
+    row.classList.toggle("changed", chg); row.classList.toggle("muted", !ok);
+    row.querySelectorAll("[data-sc]").forEach((c) => { c.disabled = !ok; });
+    const def = row.querySelector(".def");
+    if (def) def.textContent = chg ? `default ${scDefault(p)}` : p.kind === "choice" ? "" : `${p.min}–${p.max}`;
+  }
+  box.querySelectorAll("details.grp").forEach((dt) => {
+    const ps = cat.filter((p) => p.group === dt.dataset.grp);
+    const gc = ps.filter((p) => scApplies(p, SC.sel) && !same(SC.sel[p.id], p.default)).length;
+    dt.querySelector(".cnt").textContent = `${gc ? `${gc} changed · ` : ""}${ps.length}`;
+  });
+  const pill = box.querySelector(".rhead .pill");
+  if (pill) pill.outerHTML = scState();
+  const n = box.querySelector(".scchg");
+  if (n) n.textContent = cat.filter((p) => scApplies(p, SC.sel) && !same(SC.sel[p.id], p.default)).length;
+  box.querySelector(".scfg > .error")?.remove();
+  const msg = box.querySelector("#scMsg");
+  if (msg) msg.textContent = SC.msg;
+}
+
+async function saveStructCfg(run) {
+  const id = SC.runId;
+  SC.busy = true; SC.errors = []; SC.msg = run ? "Saving and starting the HS1 iterations…" : "Saving…"; renderStructCfg();
+  try {
+    const r = await fetch(`/api/runs/${id}/structure-config`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selection: SC.sel }) });
+    const j = await r.json();
+    if (!r.ok) { SC.errors = j.errors?.length ? j.errors : [j.error || r.statusText]; SC.msg = "Not saved."; return; }
+    SC.data = j; SC.sel = JSON.parse(JSON.stringify(j.selection));
+    SC.msg = run ? `Saved (${j.hash}); HS1 iterations running in ${COUPLING[H.opts.coupling].name.toLowerCase()} — see the HS1 card below.` : `Saved (${j.hash}).`;
+  } catch (e) {
+    SC.errors = [e.message]; SC.msg = "Not saved."; return;
+  } finally {
+    SC.busy = false; if (SC.runId === id) renderStructCfg();
+  }
+  if (run) runHs1(id, H.opts.coupling);
+}
+
+// Fleet calibration artefact a stored HS1 result used (null: priors), and the one the dashboard uses now.
+function calUsed(x) {
+  if (x.report.calibration.engine === "prior") return null;
+  return x.options?.calibration || (x.report.versions.calibration_path || "").split("/").pop() || "unnamed artefact";
+}
+function calStatusNote(c) {
+  if (!c) return "";
+  if (c.mode === "missing") return `<b>Fleet calibration:</b> <span class="error">${esc(c.error)}</span>`;
+  if (c.mode === "prior")
+    return `<b>Fleet calibration:</b> none, technology factors k come from their priors${c.error ? ` (${esc(c.error)})` : ""}.`;
+  return `<b>Fleet calibration:</b> <code>${esc(c.name)}</code>${c.mode === "latest"
+    ? " (newest artefact in WeightEstimation/artefacts; picked up automatically after each <code>hs1-weights calibrate</code>)"
+    : " (fixed by HS1_CALIBRATION)"}.`;
+}
+
+function structCfgNote(x) {
+  const s = x.structure_config;
+  if (s && s.source === "selection")
+    return `Aircraft Structural Config: saved selection <code>${esc(s.hash)}</code> (${s.n_changed} parameter${s.n_changed === 1 ? "" : "s"} changed from default)`;
+  return `HS1 structural detail from the default overlay <code>${esc(x.overlay || s?.path || "")}</code> (illustrative placeholders; no Aircraft Structural Config saved for this run)`;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -682,6 +984,9 @@ async function init() {
   applyPreset("");
   $("#run").onclick = runDesign;
   $("#reset").onclick = () => { sel.value = ""; applyPreset(""); };
+  const sc = document.createElement("div");
+  sc.id = "structcfg";
+  $("#hs1cards").before(sc);
   await loadHs1Status();
   await refreshRuns();
   if (S.runs.length) {
