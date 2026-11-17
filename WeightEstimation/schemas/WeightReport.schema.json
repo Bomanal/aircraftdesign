@@ -1,0 +1,345 @@
+{
+  "$defs": {
+    "AnalogComparison": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type_name": {
+          "title": "Type Name",
+          "type": "string"
+        },
+        "distance": {
+          "title": "Distance",
+          "type": "number"
+        },
+        "tier_c": {
+          "title": "Tier C",
+          "type": "boolean"
+        },
+        "empty_weight_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Empty Weight Kg"
+        },
+        "mtow_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mtow Kg"
+        },
+        "delta_by_component": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Delta By Component",
+          "type": "object"
+        },
+        "delta_by_driver": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Delta By Driver",
+          "type": "object"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type_name",
+        "distance",
+        "tier_c",
+        "empty_weight_kg",
+        "mtow_kg",
+        "delta_by_component",
+        "delta_by_driver",
+        "explanation"
+      ],
+      "title": "AnalogComparison",
+      "type": "object"
+    },
+    "ComponentReport": {
+      "properties": {
+        "mass_kg": {
+          "$ref": "#/$defs/Dist"
+        },
+        "method": {
+          "title": "Method",
+          "type": "string"
+        },
+        "governing_load_case": {
+          "title": "Governing Load Case",
+          "type": "string"
+        },
+        "calibrated": {
+          "title": "Calibrated",
+          "type": "boolean"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Dist"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "transcription_verified": {
+          "default": true,
+          "title": "Transcription Verified",
+          "type": "boolean"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "mass_kg",
+        "method",
+        "governing_load_case",
+        "calibrated"
+      ],
+      "title": "ComponentReport",
+      "type": "object"
+    },
+    "Dist": {
+      "properties": {
+        "mean": {
+          "title": "Mean",
+          "type": "number"
+        },
+        "sd": {
+          "title": "Sd",
+          "type": "number"
+        },
+        "p10": {
+          "title": "P10",
+          "type": "number"
+        },
+        "p50": {
+          "title": "P50",
+          "type": "number"
+        },
+        "p90": {
+          "title": "P90",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mean",
+        "sd",
+        "p10",
+        "p50",
+        "p90"
+      ],
+      "title": "Dist",
+      "type": "object"
+    },
+    "RuleFlag": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": true,
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "severity",
+        "message"
+      ],
+      "title": "RuleFlag",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "components": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ComponentReport"
+      },
+      "title": "Components",
+      "type": "object"
+    },
+    "empty_weight": {
+      "$ref": "#/$defs/Dist"
+    },
+    "mtow": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Dist"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cg": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cg"
+    },
+    "envelope": {
+      "additionalProperties": true,
+      "title": "Envelope",
+      "type": "object"
+    },
+    "stall_area_min_m2": {
+      "additionalProperties": true,
+      "title": "Stall Area Min M2",
+      "type": "object"
+    },
+    "analogs": {
+      "items": {
+        "$ref": "#/$defs/AnalogComparison"
+      },
+      "title": "Analogs",
+      "type": "array"
+    },
+    "rule_flags": {
+      "items": {
+        "$ref": "#/$defs/RuleFlag"
+      },
+      "title": "Rule Flags",
+      "type": "array"
+    },
+    "sobol": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Sobol"
+    },
+    "sobol_detail": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sobol Detail"
+    },
+    "n_bays_sensitivity": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "N Bays Sensitivity"
+    },
+    "cert_group_sensitivity": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cert Group Sensitivity"
+    },
+    "calibration": {
+      "additionalProperties": true,
+      "title": "Calibration",
+      "type": "object"
+    },
+    "assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "unverified_criteria": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unverified Criteria",
+      "type": "array"
+    },
+    "versions": {
+      "additionalProperties": true,
+      "title": "Versions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "components",
+    "empty_weight",
+    "mtow",
+    "cg",
+    "envelope",
+    "stall_area_min_m2",
+    "analogs",
+    "rule_flags",
+    "sobol",
+    "calibration",
+    "assumptions",
+    "unverified_criteria",
+    "versions"
+  ],
+  "title": "WeightReport",
+  "type": "object"
+}

@@ -1,0 +1,415 @@
+{
+  "_comment": "HS1 overlay for an eacsize run: everything hs1_weights needs that eacsize does not model. ILLUSTRATIVE placeholders (assumption=true) copied from examples/hs1_reference.json; replace with HS1 layout, vendor data and sized load paths. Stations are absolute x/z in metres from the datum, so check them against the eacsize fuselage length. Any field set here that eacsize also supplies overrides the eacsize value (logged).",
+  "wing": {
+    "sweep_qc_deg": 0.0,
+    "a_per_rad": 5.0,
+    "x_lemac_m": 2.05
+  },
+  "htail": {
+    "aspect_ratio": 4.5,
+    "taper": 0.7,
+    "sweep_qc_deg": 0.0,
+    "tc": 0.12
+  },
+  "vtail": {
+    "aspect_ratio": 1.5,
+    "taper": 0.5,
+    "sweep_qc_deg": 30.0,
+    "tc": 0.12
+  },
+  "fuselage": {
+    "structural_length_m": 6.5
+  },
+  "gear": {
+    "x_main_m": 2.85,
+    "x_nose_m": 0.6
+  },
+  "powertrain": {
+    "motors": [
+      {
+        "id": "wing_L",
+        "location": "wing",
+        "y_m": 2.2,
+        "inverter_in_nacelle": true,
+        "sp_motor_kw_per_kg": {
+          "dist": "uniform",
+          "low": 4.0,
+          "high": 6.0,
+          "assumption": true
+        },
+        "sp_inv_kw_per_kg": {
+          "dist": "uniform",
+          "low": 12.0,
+          "high": 20.0,
+          "assumption": true
+        },
+        "prop_mass_kg": {
+          "dist": "normal",
+          "mean": 4.0,
+          "sd": 0.4,
+          "assumption": true
+        },
+        "fairing_mass_kg": {
+          "dist": "uniform",
+          "low": 1.5,
+          "high": 3.5,
+          "assumption": true
+        },
+        "station": {
+          "x_m": 1.6,
+          "z_m": 0.3
+        },
+        "power_share": 0.3
+      },
+      {
+        "id": "wing_R",
+        "location": "wing",
+        "y_m": 2.2,
+        "inverter_in_nacelle": true,
+        "sp_motor_kw_per_kg": {
+          "dist": "uniform",
+          "low": 4.0,
+          "high": 6.0,
+          "assumption": true
+        },
+        "sp_inv_kw_per_kg": {
+          "dist": "uniform",
+          "low": 12.0,
+          "high": 20.0,
+          "assumption": true
+        },
+        "prop_mass_kg": {
+          "dist": "normal",
+          "mean": 4.0,
+          "sd": 0.4,
+          "assumption": true
+        },
+        "fairing_mass_kg": {
+          "dist": "uniform",
+          "low": 1.5,
+          "high": 3.5,
+          "assumption": true
+        },
+        "station": {
+          "x_m": 1.6,
+          "z_m": 0.3
+        },
+        "power_share": 0.3
+      },
+      {
+        "id": "aft",
+        "location": "fuselage",
+        "inverter_in_nacelle": false,
+        "sp_motor_kw_per_kg": {
+          "dist": "uniform",
+          "low": 4.0,
+          "high": 6.0,
+          "assumption": true
+        },
+        "sp_inv_kw_per_kg": {
+          "dist": "uniform",
+          "low": 12.0,
+          "high": 20.0,
+          "assumption": true
+        },
+        "prop_mass_kg": {
+          "dist": "normal",
+          "mean": 6.0,
+          "sd": 0.6,
+          "assumption": true
+        },
+        "fairing_mass_kg": {
+          "dist": "uniform",
+          "low": 1.0,
+          "high": 3.0,
+          "assumption": true
+        },
+        "station": {
+          "x_m": 6.6,
+          "z_m": 0.6
+        },
+        "power_share": 0.4
+      }
+    ],
+    "pack": {
+      "heat_kw": {
+        "dist": "uniform",
+        "low": 2.0,
+        "high": 5.0,
+        "assumption": true,
+        "note": "pack heat at design C-rate, hot day"
+      }
+    },
+    "v_bus": 400.0,
+    "harness": [
+      {
+        "motor": "wing_L",
+        "length_m": 7.0,
+        "conductor": "Cu",
+        "j_allow_a_per_mm2": {
+          "dist": "uniform",
+          "low": 3.0,
+          "high": 6.0,
+          "assumption": true
+        },
+        "f_ins": {
+          "dist": "uniform",
+          "low": 1.3,
+          "high": 1.8,
+          "assumption": true
+        }
+      },
+      {
+        "motor": "wing_R",
+        "length_m": 7.0,
+        "conductor": "Cu",
+        "j_allow_a_per_mm2": {
+          "dist": "uniform",
+          "low": 3.0,
+          "high": 6.0,
+          "assumption": true
+        },
+        "f_ins": {
+          "dist": "uniform",
+          "low": 1.3,
+          "high": 1.8,
+          "assumption": true
+        }
+      },
+      {
+        "motor": "aft",
+        "length_m": 7.0,
+        "conductor": "Cu",
+        "j_allow_a_per_mm2": {
+          "dist": "uniform",
+          "low": 3.0,
+          "high": 6.0,
+          "assumption": true
+        },
+        "f_ins": {
+          "dist": "uniform",
+          "low": 1.3,
+          "high": 1.8,
+          "assumption": true
+        }
+      }
+    ],
+    "thermal": {
+      "cooling": "liquid",
+      "k_th_kg_per_kw": {
+        "dist": "uniform",
+        "low": 1.5,
+        "high": 3.0,
+        "assumption": true
+      }
+    },
+    "lv_system_kg": {
+      "dist": "uniform",
+      "low": 4.0,
+      "high": 8.0,
+      "assumption": true
+    },
+    "c_mount_kg_per_kn": {
+      "dist": "uniform",
+      "low": 0.4,
+      "high": 0.9,
+      "assumption": true
+    }
+  },
+  "battery_bays": {
+    "bays": [
+      {
+        "station": {
+          "x_m": 2.2,
+          "z_m": 0.2
+        },
+        "energy_fraction": 0.5
+      },
+      {
+        "station": {
+          "x_m": 2.7,
+          "z_m": 0.2
+        },
+        "energy_fraction": 0.5
+      }
+    ],
+    "hw_mass_per_bay_kg": {
+      "dist": "uniform",
+      "low": 3.0,
+      "high": 6.0,
+      "assumption": true
+    },
+    "c_ret_kg_per_kn": {
+      "dist": "uniform",
+      "low": 0.15,
+      "high": 0.4,
+      "assumption": true
+    },
+    "cutout_area_m2": 0.6,
+    "k_cut": {
+      "dist": "uniform",
+      "low": 0.5,
+      "high": 2.0,
+      "assumption": true
+    }
+  },
+  "equipment": [
+    {
+      "name": "efis",
+      "category": "avionics",
+      "mass_kg": 3.5,
+      "estimate": true,
+      "station": {
+        "x_m": 1.2,
+        "z_m": 0.7
+      }
+    },
+    {
+      "name": "com_radio",
+      "category": "avionics",
+      "mass_kg": 1.5,
+      "estimate": true,
+      "station": {
+        "x_m": 1.2,
+        "z_m": 0.7
+      }
+    },
+    {
+      "name": "transponder",
+      "category": "avionics",
+      "mass_kg": 1.0,
+      "estimate": true,
+      "station": {
+        "x_m": 1.3,
+        "z_m": 0.6
+      }
+    },
+    {
+      "name": "seats",
+      "category": "seats",
+      "mass_kg": 16.0,
+      "estimate": true,
+      "station": {
+        "x_m": 2.0,
+        "z_m": 0.3
+      }
+    },
+    {
+      "name": "interior",
+      "category": "interior",
+      "mass_kg": 12.0,
+      "estimate": true,
+      "station": {
+        "x_m": 2.1,
+        "z_m": 0.5
+      }
+    },
+    {
+      "name": "brs",
+      "category": "brs",
+      "mass_kg": 12.0,
+      "estimate": true,
+      "station": {
+        "x_m": 2.6,
+        "z_m": 0.9
+      }
+    },
+    {
+      "name": "lv_battery",
+      "category": "lv_battery",
+      "mass_kg": 3.0,
+      "estimate": true,
+      "station": {
+        "x_m": 1.0,
+        "z_m": 0.4
+      }
+    },
+    {
+      "name": "lighting",
+      "category": "lighting",
+      "mass_kg": 1.5,
+      "estimate": true,
+      "station": {
+        "x_m": 3.0,
+        "z_m": 0.5
+      }
+    },
+    {
+      "name": "hv_protection",
+      "category": "hv_protection",
+      "mass_kg": 4.0,
+      "estimate": true,
+      "station": {
+        "x_m": 2.8,
+        "z_m": 0.3
+      }
+    }
+  ],
+  "brs_fitted": true,
+  "material_by_component": {
+    "wing": "composite_carbon",
+    "htail": "composite_carbon",
+    "vtail": "composite_carbon",
+    "fuselage": "composite_carbon",
+    "gear": "metal_aluminium"
+  },
+  "light_pilot_kg": 60.0,
+  "seat_station": {
+    "x_m": 2.0,
+    "z_m": 0.5
+  },
+  "stations": {
+    "wing": {
+      "x_m": 2.25,
+      "z_m": 0.1
+    },
+    "htail": {
+      "x_m": 6.6,
+      "z_m": 0.8
+    },
+    "vtail": {
+      "x_m": 6.5,
+      "z_m": 1.3
+    },
+    "fuselage": {
+      "x_m": 3.0,
+      "z_m": 0.6
+    },
+    "main_gear": {
+      "x_m": 2.85,
+      "z_m": -0.4
+    },
+    "nose_gear": {
+      "x_m": 0.6,
+      "z_m": -0.4
+    },
+    "flight_controls": {
+      "x_m": 3.5,
+      "z_m": 0.4
+    },
+    "avionics_installed": {
+      "x_m": 1.25,
+      "z_m": 0.7
+    },
+    "electrical_lv": {
+      "x_m": 1.5,
+      "z_m": 0.4
+    },
+    "ecs_anti_ice": {
+      "x_m": 1.5,
+      "z_m": 0.4
+    },
+    "thermal_mgmt": {
+      "x_m": 1.0,
+      "z_m": 0.3
+    },
+    "hv_harness": {
+      "x_m": 3.0,
+      "z_m": 0.3
+    },
+    "inverters": {
+      "x_m": 4.0,
+      "z_m": 0.5
+    }
+  }
+}

@@ -1,0 +1,82 @@
+id,type_name,variant_hint,seats,powertrain,material_primary,structure_note,cert_expected,status,priority,component_data_lead
+pip_velis_electro,Pipistrel Velis Electro,Virus SW 128,2,battery_electric,composite_mixed,,CS-LSA/EASA TC + SC,production,1,EASA TCDS + POH; HS1 anchor
+pip_alpha_electro,Pipistrel Alpha Electro,,2,battery_electric,composite_mixed,,LSA/UL,production,1,POH
+bye_eflyer2,Bye Aerospace eFlyer 2,,2,battery_electric,composite_carbon,,FAR23 (in progress),certified_not_delivered,2,Tier B/C
+airbus_efan,Airbus E-Fan,1.0,2,battery_electric,composite_carbon,,experimental,prototype,2,Tier C
+elektra_trainer,Elektra Trainer,,2,battery_electric,composite_mixed,,EASA (in progress),prototype,2,Tier B/C
+pip_taurus_electro,Pipistrel Taurus Electro,,2,battery_electric,composite_mixed,motorglider; high AR,UL/LSA,production,2,flag motorglider
+sonex_electric,Sonex Electric,,1-2,battery_electric,metal_aluminium,,experimental,prototype,3,Tier C
+pip_virus_sw121,Pipistrel Virus SW 121,,2,piston_rotax,composite_mixed,,CS-LSA/EASA TC,production,1,EASA TCDS + POH; HS1 comparator
+pip_sinus912,Pipistrel Sinus 912,,2,piston_rotax,composite_mixed,motorglider,UL/LSA,production,1,POH; HS1 comparator
+pip_alpha_trainer,Pipistrel Alpha Trainer,,2,piston_rotax,composite_mixed,,LSA/UL,production,1,POH
+diamond_da20,Diamond DA20,C1 / A1,2,piston_avgas,composite_glass,,FAR23 normal/utility,out_of_production,1,FAA TCDS + POH
+fd_ctls,Flight Design CTLS,,2,piston_rotax,composite_carbon,,ASTM F2245,production,1,POH
+remos_gx,Remos GX,,2,piston_rotax,composite_carbon,,ASTM F2245,production,2,POH
+aquila_at01,Aquila A210 / AT01,,2,piston_rotax,composite_mixed,,CS-VLA,production,1,EASA TCDS
+grob_g115,Grob G 115,E,2,piston_avgas,composite_glass,,FAR23/JAR23 utility/aerobatic,out_of_production,2,TCDS
+slingsby_t67,Slingsby T67 Firefly,M260,2,piston_avgas,composite_glass,,FAR23 aerobatic,out_of_production,2,TCDS
+elixir,Elixir Aircraft Elixir,,2,piston_rotax,composite_carbon,,CS-23 L1,production,1,EASA TCDS; modern CS-23 L1 2-seat
+shark_aero,Shark.Aero Shark,,2,piston_rotax,composite_carbon,tandem,UL/LSA,production,3,
+blackwing,Blackwing,,2,piston_rotax,composite_carbon,,UL/LSA,production,3,
+icon_a5,Icon A5,,2,piston_rotax,composite_carbon,amphibian,ASTM F2245 (exemption),production,2,flag amphibian
+tecnam_p2008,Tecnam P2008,JC,2,piston_rotax,composite_mixed,"composite fuselage, metal wing",CS-VLA / ASTM F2245,production,1,mixed-structure exemplar
+extra_300,Extra 300,L,2,piston_avgas,composite_mixed,"steel tube fuselage, carbon wing",FAR23 aerobatic,production,2,mixed; flag aerobatic
+cessna_150,Cessna 150,M,2,piston_avgas,metal_aluminium,,FAR23 normal/utility,out_of_production,1,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+cessna_152,Cessna 152,,2,piston_avgas,metal_aluminium,,FAR23 normal/utility,out_of_production,1,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+cessna_162,Cessna 162 Skycatcher,,2,piston_avgas,metal_aluminium,,ASTM F2245,out_of_production,2,POH
+vans_rv12,Van's RV-12,iS,2,piston_rotax,metal_aluminium,,ASTM F2245 / experimental,production,1,POH
+vans_rv7,Van's RV-7,,2,piston_avgas,metal_aluminium,,experimental,production,3,builder-reported weights: tier B
+piper_pa38,Piper PA-38 Tomahawk,,2,piston_avgas,metal_aluminium,,FAR23 normal/utility,out_of_production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+beech_skipper,Beech 77 Skipper,,2,piston_avgas,metal_aluminium,,FAR23 normal/utility,out_of_production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+bristell,BRM Aero Bristell,NG5,2,piston_rotax,metal_aluminium,,ASTM F2245 / CS-23 variant,production,2,POH
+evektor_sportstar,Evektor SportStar,RTC,2,piston_rotax,metal_aluminium,,CS-LSA / FAR23,production,2,TCDS
+zenith_ch650,Zenith CH 650,,2,piston_rotax,metal_aluminium,,experimental/ASTM,production,3,
+sling_2,Sling 2,,2,piston_rotax,metal_aluminium,,ASTM F2245,production,2,POH
+piper_j3,Piper J-3 Cub,,2,piston_avgas,steel_tube_fabric,,CAR 4a,out_of_production,2,TCDS
+piper_supercub,Piper PA-18 Super Cub,150,2,piston_avgas,steel_tube_fabric,,CAR 3,out_of_production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+aeronca_champ,Aeronca 7AC Champion,,2,piston_avgas,steel_tube_fabric,,CAR 4a,out_of_production,2,TCDS
+robin_dr400,Robin DR400,120,2-4,piston_avgas,wood,,FAR23/JAR23,production,2,TCDS
+robin_hr200,Robin HR200,,2,piston_avgas,metal_aluminium,,JAR23,out_of_production,3,
+jodel_d11,Jodel D11x,,2,piston_avgas,wood,,national/experimental,out_of_production,3,
+cirrus_sr20,Cirrus SR20,G6,4-5,piston_avgas,composite_glass,,FAR23 normal,production,1,FAA TCDS + POH
+cirrus_sr22,Cirrus SR22,G6,4-5,piston_avgas,composite_glass,,FAR23 normal,production,1,FAA TCDS + POH
+diamond_da40,Diamond DA40,NG,4,piston_diesel,composite_glass,,FAR23/CS-23 normal,production,1,TCDS + POH
+cessna_400,Cessna 400 / Columbia,,4,piston_avgas,composite_glass,,FAR23 normal,out_of_production,2,TCDS
+glasair_iii,Glasair III,,2,piston_avgas,composite_glass,,experimental,out_of_production,3,
+lancair_es,Lancair ES,,4,piston_avgas,composite_glass,,experimental,out_of_production,3,
+tecnam_p2010,Tecnam P2010,,4,piston_avgas,composite_mixed,"carbon fuselage, metal wing",CS-23/FAR23,production,1,TCDS; mixed exemplar
+cessna_172,Cessna 172,S,4,piston_avgas,metal_aluminium,,FAR23 normal/utility,production,1,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+cessna_182,Cessna 182,T,4,piston_avgas,metal_aluminium,,FAR23 normal,production,1,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+piper_pa28,Piper PA-28 Cherokee/Warrior/Archer,161/181,4,piston_avgas,metal_aluminium,,FAR23 normal/utility,production,1,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+mooney_m20,Mooney M20,J,4,piston_avgas,metal_aluminium,steel tube cabin cage,FAR23 normal,out_of_production,2,TCDS
+grumman_aa5,Grumman AA-5,,4,piston_avgas,metal_aluminium,bonded honeycomb,FAR23 normal,out_of_production,2,TCDS
+socata_tb20,Socata TB 20,,4-5,piston_avgas,metal_aluminium,retractable,FAR23 normal,out_of_production,2,TCDS
+vans_rv10,Van's RV-10,,4,piston_avgas,metal_aluminium,,experimental,production,3,
+sling_4,Sling 4 / TSi,,4,piston_rotax,metal_aluminium,,experimental/ASTM,production,2,
+commander_114,Commander 114,B,4,piston_avgas,metal_aluminium,retractable,FAR23 normal,out_of_production,3,TCDS
+diamond_da42,Diamond DA42,NG,4,piston_diesel,composite_glass,twin,FAR23/CS-23 normal,production,2,TCDS
+diamond_da62,Diamond DA62,,5-7,piston_diesel,composite_glass,twin,CS-23 normal,production,2,TCDS
+tecnam_p2006t,Tecnam P2006T,,4,piston_rotax,metal_aluminium,twin,CS-23,production,2,TCDS
+beech_baron,Beech Baron,G58,4-6,piston_avgas,metal_aluminium,"twin, retractable",FAR23 normal,production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+piper_seneca,Piper PA-34 Seneca,V,6,piston_avgas,metal_aluminium,twin,FAR23 normal,production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+cessna_310,Cessna 310,R,5-6,piston_avgas,metal_aluminium,twin,FAR23 normal,out_of_production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+vulcanair_p68,Vulcanair / Partenavia P68,C,6-7,piston_avgas,metal_aluminium,"twin, high wing",FAR23 normal,production,2,TCDS
+epic_e1000,Epic E1000,,6,turboprop,composite_carbon,pressurized,FAR23,production,3,flag pressurized
+cessna_206,Cessna 206,H,6,piston_avgas,metal_aluminium,,FAR23 normal/utility,production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+cessna_210,Cessna 210,,6,piston_avgas,metal_aluminium,retractable,FAR23 normal,out_of_production,1,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+cessna_208,Cessna 208 Caravan,B,9-14,turboprop,metal_aluminium,,FAR23 normal,production,2,TCDS
+piper_pa32,Piper PA-32 Saratoga,,6-7,piston_avgas,metal_aluminium,,FAR23 normal,out_of_production,2,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+piper_pa46,Piper PA-46 Malibu/M350/M600,,6,piston_avgas,metal_aluminium,pressurized,FAR23 normal,production,3,flag pressurized
+daher_tbm,Daher TBM 9xx,,6,turboprop,metal_aluminium,pressurized,FAR23 normal,production,3,flag pressurized
+pilatus_pc12,Pilatus PC-12,NGX,9-11,turboprop,metal_aluminium,pressurized,FAR23 normal,production,3,flag pressurized
+quest_kodiak,Daher Kodiak 100,,10,turboprop,metal_aluminium,,FAR23 normal,production,3,TCDS
+gippsaero_ga8,GippsAero GA8 Airvan,,8,piston_avgas,metal_aluminium,,FAR23 normal,production,3,TCDS
+eviation_alice,Eviation Alice,,9-11,battery_electric,composite_carbon,,FAR23 (in progress),prototype,3,Tier C
+magnix_ecaravan,magniX eCaravan,,9,battery_electric,metal_aluminium,converted C208B,experimental,prototype,3,Tier C
+harbour_eplane,Harbour Air ePlane,DHC-2,6,battery_electric,metal_aluminium,converted Beaver,experimental,prototype,3,Tier C
+ampaire_eel,Ampaire Electric EEL,C337,6,hybrid_parallel,metal_aluminium,converted Skymaster,experimental,prototype,3,Tier C
+voltaero_cassio,VoltAero Cassio,330,4-5,hybrid_parallel,composite_mixed,,CS-23 (in progress),prototype,3,Tier C
+bn2_islander,Britten-Norman BN-2 Islander,B,9-10,piston_avgas,metal_aluminium,twin,FAR23/BCAR,production,3,TCDS
+tecnam_p2012,Tecnam P2012 Traveller,,9-11,piston_avgas,metal_aluminium,twin,CS-23 commuter,production,3,TCDS
+cessna_402,Cessna 402,C,9-10,piston_avgas,metal_aluminium,twin,FAR23 normal,out_of_production,3,check Roskam Pt V / Torenbeek appendix / NASA GA reports
+hansa3,NAL Hansa-3,,2,piston_rotax,composite_glass,Indian precedent,Part 23 using JAR-VLA (DGCA),out_of_production,1,NAL/DGCA documents; Indian anchor

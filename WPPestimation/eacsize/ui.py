@@ -4,17 +4,19 @@ Local web UI (standard library only).
     python3 -m eacsize ui [--port 8765] [--data-dir runs] [--no-browser]
 
 Serves a single page that builds its form from the model schema, runs a design on the server,
-stores each run in runs.json / runs.csv and shows the latest and previous runs.
+stores each run in runs.json / runs.csv and shows the latest and previous runs. Each run can also be sent
+on demand through the WeightEstimation (hs1_weights) pipeline; see hs1_bridge.py.
 """
 from __future__ import annotations
 import json, os, threading, traceback, webbrowser
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .model import schema
 from .presets import PRESETS
 from .sizing import run_from_dict
 from .store import RunStore
+from .hs1_bridge import HS1Bridge
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -29,7 +31,9 @@ def run_index(r):
                 summary=s)
 
 
-def make_handler(store: RunStore):
+def make_handler(store: RunStore, hs1: HS1Bridge = None):
+    hs1 = hs1 or HS1Bridge(store.json_path, store.dir)
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
             pass
@@ -64,6 +68,16 @@ def make_handler(store: RunStore):
                 return self._send(200, dict(schema=schema(), presets=PRESETS))
             if path == "/api/runs":
                 return self._send(200, [run_index(r) for r in store.load()])
+            if path == "/api/hs1":
+                return self._send(200, hs1.status())
+            if path.startswith("/api/runs/") and path.endswith("/structure-config"):
+                return self._structure(path.split("/")[3], "GET")
+            if path.startswith("/api/runs/") and path.endswith("/hs1"):
+                try:
+                    res = hs1.get(path.split("/")[3], self._coupling())
+                except ValueError as exc:
+                    return self._send(400, {"error": str(exc)})
+                return self._send(200, res) if res else self._send(404, {"error": "no HS1 result for this run"})
             if path.startswith("/api/runs/"):
                 rec = store.get(path.rsplit("/", 1)[1])
                 return self._send(200, rec) if rec else self._send(404, {"error": "run not found"})
@@ -74,7 +88,12 @@ def make_handler(store: RunStore):
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
-            if urlparse(self.path).path != "/api/run":
+            path = urlparse(self.path).path
+            if path.startswith("/api/runs/") and path.endswith("/hs1"):
+                return self._hs1_run(path.split("/")[3])
+            if path.startswith("/api/runs/") and path.endswith("/structure-config"):
+                return self._structure(path.split("/")[3], "POST")
+            if path != "/api/run":
                 return self._send(404, {"error": "not found"})
             try:
                 n = int(self.headers.get("Content-Length", 0))
@@ -86,10 +105,63 @@ def make_handler(store: RunStore):
                 traceback.print_exc()
                 self._send(400, {"error": f"{type(exc).__name__}: {exc}"})
 
+        def _coupling(self):
+            q = parse_qs(urlparse(self.path).query)
+            return q.get("coupling", ["partial"])[0]
+
+        def _hs1_run(self, run_id):
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(n) or b"{}")
+                if not store.get(run_id):
+                    return self._send(404, {"error": f"run {run_id} not found"})
+                res = hs1.run(run_id, close=bool(body.get("close", True)), mc=bool(body.get("mc", True)),
+                              coupling=str(body.get("coupling", "partial")))
+                self._send(200, res)
+            except (ValueError, RuntimeError) as exc:
+                self._send(400, {"error": str(exc)})
+            except Exception as exc:
+                traceback.print_exc()
+                self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
+
+        def _structure(self, run_id, method):
+            """Aircraft structural config of a run: GET catalogue + selection, POST save, DELETE reset."""
+            try:
+                if not store.get(run_id):
+                    return self._send(404, {"error": f"run {run_id} not found"})
+                if method == "GET":
+                    return self._send(200, hs1.get_structure(run_id))
+                if method == "DELETE":
+                    hs1.delete_structure(run_id)
+                    return self._send(200, hs1.get_structure(run_id))
+                n = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(n) or b"{}")
+                return self._send(200, hs1.save_structure(run_id, body.get("selection", body)))
+            except ValueError as exc:
+                return self._send(400, {"error": str(exc), "errors": list(getattr(exc, "errors", [str(exc)]))})
+            except (OSError, KeyError) as exc:
+                return self._send(400, {"error": f"structural config unavailable: {exc}"})
+            except Exception as exc:
+                traceback.print_exc()
+                return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
+
         def do_DELETE(self):
             path = urlparse(self.path).path
+            if path.startswith("/api/runs/") and path.endswith("/structure-config"):
+                return self._structure(path.split("/")[3], "DELETE")
+            if path.startswith("/api/runs/") and path.endswith("/hs1"):
+                try:
+                    hs1.delete(path.split("/")[3], self._coupling())
+                except ValueError as exc:
+                    return self._send(400, {"error": str(exc)})
+                return self._send(200, {"ok": True})
             if path.startswith("/api/runs/"):
-                store.delete(path.rsplit("/", 1)[1])
+                rid = path.rsplit("/", 1)[1]
+                store.delete(rid)
+                try:
+                    hs1.delete(rid)
+                except ValueError:
+                    pass
                 return self._send(200, {"ok": True})
             self._send(404, {"error": "not found"})
 
