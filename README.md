@@ -9,7 +9,7 @@ This repository holds conceptual and preliminary design tools for battery-electr
 
 | Path | What it is |
 |---|---|
-| [`WPPestimation/eacsize/`](WPPestimation/eacsize/) | Electric aircraft sizing module with a local web UI. It covers the constraint diagram, geometry, drag build-up, Raymer class-II weights, mission energy, fixed- or solved-MTOM closure and feasibility checks. Runs are saved to `runs.json` and `runs.csv`. See its [README](WPPestimation/eacsize/README.md). |
+| [`WPPestimation/eacsize/`](WPPestimation/eacsize/) | Electric aircraft sizing module with a local web UI. It covers the constraint diagram, geometry, drag build-up, class-II weights (Raymer or Roskam/Cessna, calibrated to the Risen) or a regression on flown electric aircraft, mission energy, fixed- or solved-MTOM closure and feasibility checks. Runs are saved to `runs.json` and `runs.csv`. See its [README](WPPestimation/eacsize/README.md). |
 | [`WPPestimation/risen_eas.py`](WPPestimation/risen_eas.py) | Earlier weight, performance and operating-cost estimator scaled from the Risen 912iS. It is the regression reference for `eacsize`. |
 | `WPPestimation/*.pdf` | The method document and the Risen electric configurations study that `risen_eas.py` implements |
 | [`WPPestimation/runs/`](WPPestimation/runs/) | Example runs: Risen E600, E750 new design, four-seat solved MTOM, E-Hansa 950 kg, Velis Electro check |

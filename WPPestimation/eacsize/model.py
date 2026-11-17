@@ -187,9 +187,30 @@ class Assumptions:
     nose_gear_len_m: float = A(0.50, "Nose gear strut length", "m", 0.3, 1.2, group="Geometry")
     # --- structure and weights ---
     weight_method: str = A("raymer_calibrated", "Weight method",
-                           options=["raymer_calibrated", "raymer_raw", "risen_L1"], group="Weights",
-                           source="raymer_calibrated: Raymer GA class II x k_cal fitted to the Risen. "
-                                  "risen_L1: scaled-fraction law of risen_eas", sens="highest")
+                           options=["raymer_calibrated", "raymer_raw", "roskam_calibrated", "roskam_raw",
+                                    "electric_regression", "risen_L1"], group="Weights",
+                           source="raymer_*: Raymer GA class II (Ch.15). roskam_*: Cessna class II structure "
+                                  "(Roskam Part V) + USAF gear, Raymer systems. *_calibrated: x k_cal fitted "
+                                  "to the Risen. electric_regression: fit to flown electric aircraft "
+                                  "(data/electric_aircraft.json). risen_L1: scaled-fraction law of risen_eas",
+                           sens="highest")
+    regression_use_seats: bool = A(False, "Regression: add a seats term", group="Weights",
+                                   help="electric_regression only. Needs 4+ aircraft with different seat counts.")
+    regression_exclude: str = A("", "Regression: exclude aircraft (comma-separated names)", group="Weights",
+                                help="electric_regression only, e.g. 'Diamond eDA40'")
+    regression_add: str = A("", "Regression: add default-excluded aircraft (comma-separated names)", group="Weights",
+                            help="electric_regression only, e.g. 'Airbus E-Fan 1.0, Pipistrel WATTsUP'")
+    regression_fixed_exponent: float = A(0.0, "Regression: fixed MTOM exponent b (0 = fit b)", "-", 0, 2.0,
+                                         group="Weights",
+                                         source="b = 1: constant airframe fraction. The fitted b depends strongly on "
+                                                "the one heavy point (eDA40): 1.23 with it, 1.90 without",
+                                         sens="high outside 470-600 kg")
+    regression_estimate_battery: bool = A(True, "Regression: estimate unpublished battery mass from kWh",
+                                          group="Weights")
+    regression_pack_wh_kg: float = A(170.0, "Regression: pack Wh/kg for unpublished battery masses", "Wh/kg",
+                                     120, 300, group="Weights",
+                                     source="Velis 24.8 kWh / 140 kg = 177; Alpha Electro 21 kWh / 126 kg = 167",
+                                     sens="medium (3 of 6 default aircraft)")
     n_ult: float = A(5.7, "Ultimate load factor N_z", "g", 4.0, 9.0, group="Weights",
                      source="3.8 g limit x 1.5 (normal category)", sens="medium")
     n_land_ult: float = A(4.5, "Ultimate landing load factor N_l", "g", 3.0, 6.0, group="Weights",
@@ -239,7 +260,7 @@ def schema():
         for f in fields(cls):
             m = dict(f.metadata)
             t = "bool" if f.type in ("bool", bool) else "select" if m.get("options") else \
-                "int" if f.type in ("int", int) else "number"
+                "int" if f.type in ("int", int) else "text" if f.type in ("str", str) else "number"
             rows.append(dict(key=f.name, default=f.default, type=t, **m))
         out[sec] = rows
     out["categories"] = CATEGORIES

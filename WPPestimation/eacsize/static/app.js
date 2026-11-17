@@ -109,6 +109,8 @@ function fieldRow(sec, f) {
     ctl = `<select id="${id}">${f.options.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select>`;
   } else if (f.type === "bool") {
     ctl = `<input type="checkbox" id="${id}">`;
+  } else if (f.type === "text") {
+    ctl = `<input type="text" id="${id}">`;
   } else {
     const step = f.type === "int" ? "1" : "any";
     ctl = `<input type="number" step="${step}" id="${id}"${f.lo !== null && f.lo !== undefined ? ` min="${f.type === "int" ? f.lo : 0}"` : ""}>`;
@@ -126,7 +128,7 @@ function getValues() {
       const el = document.getElementById(`${sec}.${f.key}`);
       let v;
       if (f.type === "bool") v = el.checked;
-      else if (f.type === "select") v = el.value;
+      else if (f.type === "select" || f.type === "text") v = el.value;
       else v = el.value === "" ? f.default : Number(el.value);
       out[sec][f.key] = v;
     }
@@ -173,10 +175,12 @@ function onFormChange() {
   if (a.e_method !== "fixed") m("assumptions", ["oswald_e"]);
   if (a.cd0_override > 0 || a.ld_override > 0)
     m("assumptions", ["lam_frac_wing", "lam_frac_tail", "lam_frac_fus", "misc_drag_frac", "calibrate_cd0", "gear_dq_m2"]);
-  if (a.weight_method === "risen_L1")
-    m("assumptions", ["n_ult", "n_land_ult", "kc_wing", "kc_tail", "kc_fus", "kc_gear", "retract_gear_factor",
-      "avionics_uninst_kg", "seat_kg", "brs_kg"]);
-  if (a.weight_method === "raymer_raw") m("assumptions", ["ref_struct_kg", "ref_systems_kg"]);
+  const CLASS2 = ["n_ult", "n_land_ult", "kc_wing", "kc_tail", "kc_fus", "kc_gear", "retract_gear_factor",
+    "avionics_uninst_kg", "seat_kg", "brs_kg", "main_gear_len_m", "nose_gear_len_m"];
+  if (a.weight_method === "risen_L1" || a.weight_method === "electric_regression") m("assumptions", CLASS2);
+  if (["raymer_raw", "roskam_raw", "electric_regression"].includes(a.weight_method)) m("assumptions", ["ref_struct_kg", "ref_systems_kg"]);
+  if (a.weight_method !== "electric_regression")
+    m("assumptions", ["regression_use_seats", "regression_exclude", "regression_add", "regression_estimate_battery", "regression_pack_wh_kg", "regression_fixed_exponent"]);
   if (i.oew_override_kg > 0)
     m("assumptions", ["weight_method", "n_ult", "n_land_ult", "kc_wing", "kc_tail", "kc_fus", "kc_gear", "retract_gear_factor",
       "avionics_uninst_kg", "seat_kg", "brs_kg", "ref_struct_kg", "ref_systems_kg", "pt_kw_per_kg", "prop_mass_coeff"]);
@@ -236,8 +240,8 @@ function lineChart({ title, xlabel, ylabel, series, vlines = [], points = [], ym
     g += `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" ${s.dash ? 'stroke-dasharray="6 4"' : ""}/>`;
   });
   points.forEach((p) => {
-    g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5" fill="var(--fg)" stroke="var(--surface)" stroke-width="2"/>` +
-      `<text x="${X(p.x) + 8}" y="${Y(p.y) - 7}" class="lab">${esc(p.label)}</text>`;
+    g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.r || 5}" fill="${p.color || "var(--fg)"}" stroke="var(--surface)" stroke-width="2"/>` +
+      (p.label ? `<text x="${X(p.x) + 8}" y="${Y(p.y) - 7}" class="lab">${esc(p.label)}</text>` : "");
   });
   const legend = series.map((s, i) => `<span><i style="background:${s.color || COLORS[i % COLORS.length]}"></i>${esc(s.name)}</span>`).join("");
   return `<div class="card chart"><h3>${esc(title)}</h3><div class="legend">${legend}</div>` +
@@ -259,7 +263,8 @@ function constraintChart(c) {
 }
 
 function massBars(mass, mtom) {
-  const cat = (k) => ["wing", "htail", "vtail", "fuselage", "main_gear", "nose_gear", "structure", "oew_override"].includes(k) ? 0 :
+  const cat = (k) => ["wing", "htail", "vtail", "fuselage", "main_gear", "nose_gear", "landing_gear", "structure",
+    "oew_override", "airframe_regression"].includes(k) ? 0 :
     ["e_powertrain", "propeller"].includes(k) ? 2 : k.startsWith("battery") ? 3 : k === "payload" ? 4 : 1;
   const col = ["var(--s1)", "var(--s6)", "var(--s4)", "var(--s5)", "var(--s3)"];
   const rows = Object.entries(mass).filter(([, v]) => v > 0.05);
@@ -343,7 +348,9 @@ function renderResult(rec) {
         <tr><td>C_D0 parts</td><td>${cd0p}</td></tr>
         <tr><td>Chain efficiency (battery → thrust)</td><td>${fmt(d.eta_chain_cruise, 3)}</td></tr>
         <tr><td>Battery sized by</td><td>${esc(r.closure.battery_driver)}</td></tr>
-        <tr><td>Calibration k_struct · k_sys · k_cd0</td><td>${fmt(r.calibration.k_struct, 3)} · ${fmt(r.calibration.k_sys, 3)} · ${fmt(r.calibration.k_cd0, 3)}</td></tr>
+        <tr><td>Weight method · calibration k_struct · k_sys</td><td>${esc(rec.assumptions.weight_method)} ·
+          ${r.calibration.k_struct == null ? "not applied" : `${fmt(r.calibration.k_struct, 3)} · ${fmt(r.calibration.k_sys, 3)}`}</td></tr>
+        <tr><td>C_D0 calibration k_cd0</td><td>${rec.assumptions.calibrate_cd0 ? fmt(r.calibration.k_cd0, 3) : "not applied"}</td></tr>
       </tbody></table></div>
       <div class="card"><h3>Geometry</h3><table><tbody>
         <tr><td>Wing S · b · AR · taper</td><td>${fmt(geo.S, 2)} m² · ${fmt(geo.b, 2)} m · ${fmt(geo.AR, 2)} · ${fmt(geo.taper, 2)}</td></tr>
@@ -354,9 +361,37 @@ function renderResult(rec) {
         <tr><td>Wetted area wing · fuselage · tails</td><td>${fmt(geo.S_wet_wing, 1)} · ${fmt(geo.S_wet_fus, 1)} · ${fmt(geo.S_wet_ht + geo.S_wet_vt, 1)} m²</td></tr>
       </tbody></table></div>
     </div>
+    ${regressionCard(r, s)}
     <div class="card"><h3>Inputs and assumptions changed from default</h3><div class="tbl-wrap">${usedHtml}</div></div>`;
   $("#loadcur").onclick = () => { setValues(rec); $("#label").value = rec.label; };
   renderHistory();
+}
+
+function regressionCard(r, s) {
+  const f = r.calibration.regression;
+  if (!f) return "";
+  const lo = f.mtom_min_kg * 0.8, hi = Math.max(f.mtom_max_kg, s.mtom_kg) * 1.1;
+  const xs = Array.from({ length: 30 }, (_, i) => lo + (hi - lo) * i / 29);
+  const seats = f.c == null ? 1 : S.current.inputs.seats;
+  const fitY = xs.map((x) => f.a * x ** f.b * (f.c == null ? 1 : seats ** f.c));
+  const chart = lineChart({
+    title: "Electric-aircraft regression: airframe mass vs MTOM", xlabel: "MTOM [kg]", ylabel: "Airframe mass excl. battery and powertrain [kg]",
+    series: [{ name: `fit: ${f.form}${f.c == null ? "" : ` (seats = ${seats})`}`, x: xs, y: fitY }],
+    points: [...f.points.map((p) => ({ x: p.mtom_kg, y: p.airframe_kg, r: 4, color: p.battery_estimated ? "var(--s5)" : "var(--s3)" })),
+      { x: s.mtom_kg, y: r.mass_kg.airframe_regression, label: "this design" }], ymin: 0,
+    note: "Green: battery mass published. Amber: battery mass estimated from kWh. Aircraft are listed in the table.",
+  });
+  const rows = f.points.map((p) => `<tr><td>${esc(p.name)}</td><td class="n">${fmt(p.mtom_kg, 0)}</td><td class="n">${p.seats}</td>` +
+    `<td class="n">${fmt(p.airframe_kg, 1)}${p.battery_estimated ? " *" : ""}</td><td class="n">${fmt(p.predicted_kg, 1)}</td>` +
+    `<td class="n">${fmt(p.error_pct, 1)}%</td><td>${esc(p.confidence)}</td></tr>`).join("");
+  return `<div class="grid2">${chart}<div class="card"><h3>Regression fit</h3>
+    <p class="note">${esc(f.form)}: a = ${fmt(f.a, 4)}, b = ${fmt(f.b, 3)}${f.c == null ? "" : `, c = ${fmt(f.c, 3)}`} ·
+    n = ${f.n} · R² = ${fmt(f.r2, 3)} · rms error ${fmt(f.rms_error_pct, 1)}% · data ${fmt(f.mtom_min_kg, 0)}–${fmt(f.mtom_max_kg, 0)} kg.
+    Airframe = empty mass excl. battery, less the modelled e-powertrain and propeller.
+    * battery mass estimated from kWh at ${fmt(S.current.assumptions.regression_pack_wh_kg, 0)} Wh/kg.
+    Dataset and sources: eacsize/data/electric_aircraft.json.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Aircraft</th><th>MTOM</th><th>Seats</th><th>Airframe kg</th><th>Fit kg</th><th>Error</th><th>Data</th></tr></thead>
+    <tbody>${rows}</tbody></table></div></div></div>`;
 }
 
 function diffFromDefaults(rec) {

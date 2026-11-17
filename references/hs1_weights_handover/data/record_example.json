@@ -1,0 +1,22 @@
+{
+  "_comment": "STRUCTURE EXAMPLE ONLY. All values TO-VERIFY against cited sources before any use. Not calibration-eligible.",
+  "id": "pip_velis_electro",
+  "type_name": "Pipistrel Velis Electro",
+  "variant": "Virus SW 128",
+  "year_first_flight": null,
+  "cert": "cs_lsa",
+  "seats": 2,
+  "production_status": "production",
+  "mtow": {"value": 600.0, "unit": "kg", "source": "src_velis_tcds", "confidence": 0.5, "note": "TO-VERIFY"},
+  "empty_weight": {"value": 428.0, "unit": "kg", "source": "src_velis_poh", "confidence": 0.5, "note": "TO-VERIFY; confirm includes installed packs"},
+  "empty_weight_def": "unknown",
+  "battery_energy_total": {"value": 24.8, "unit": "kWh", "source": "src_velis_poh", "confidence": 0.5, "note": "TO-VERIFY"},
+  "wing_area": null,
+  "span": null,
+  "powertrain": "battery_electric",
+  "n_motors_or_engines": 1,
+  "material_primary": "composite_mixed",
+  "gear": "fixed_tricycle",
+  "components": [],
+  "notes": "HS1 primary anchor (endurance validation already reproduced in hs1_design)."
+}

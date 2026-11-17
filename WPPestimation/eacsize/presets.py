@@ -27,6 +27,18 @@ PRESETS = {
         inputs=dict(mode="fixed_mtom", mtom_kg=750, seats=2, seat_layout="side_by_side", gear="retractable",
                     geometry_mode="constraint", category="CS-VLA"),
     ),
+    "e750_roskam": dict(
+        title="E750 two-seat new design, Roskam/Cessna class II (calibrated)",
+        inputs=dict(mode="fixed_mtom", mtom_kg=750, seats=2, seat_layout="side_by_side", gear="retractable",
+                    geometry_mode="constraint", category="CS-VLA"),
+        assumptions=dict(weight_method="roskam_calibrated"),
+    ),
+    "e750_regression": dict(
+        title="E750 two-seat new design, electric-aircraft regression",
+        inputs=dict(mode="fixed_mtom", mtom_kg=750, seats=2, seat_layout="side_by_side", gear="retractable",
+                    geometry_mode="constraint", category="CS-VLA"),
+        assumptions=dict(weight_method="electric_regression"),
+    ),
     "risen_e600_regression": dict(
         title="Risen E600, risen_eas regression (L1 weights, scaled Risen)",
         **_merge(_RISEN_L1, dict(inputs=dict(mode="fixed_mtom", mtom_kg=600, seats=2))),

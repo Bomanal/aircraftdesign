@@ -1,0 +1,3 @@
+id,title,kind,tier,url,accessed,sha256,notes
+src_example_tcds,"<Authority> TCDS <number> Rev <n>",TCDS,A,<url>,YYYY-MM-DD,<sha256 of PDF>,
+src_example_poh,"<Manufacturer> POH <model> Section 6 Weight and Balance",POH,A,<url or archive ref>,YYYY-MM-DD,<sha256>,
